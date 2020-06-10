@@ -1,9 +1,10 @@
 # Ignore
 */metadata/Annotations
 */metadata/*
-*/rawdata/*rds
-*/rawdata/*rda
+*/rawdata/*
 *.RData
 
 # Exceptions
 !*/metadata/getMetadata.sh
+!*/rawdata/downloadPSets.sh
+!*/placeholder.txt
