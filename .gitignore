@@ -7,3 +7,5 @@
 
 # Exceptions
 !*/metadata/getMetadata.sh
+!*/rawdata/downloadPSets.sh
+!*placeholder.txt
