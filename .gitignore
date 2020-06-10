@@ -1,0 +1,9 @@
+# Ignore
+*/metadata/Annotations
+*/metadata/*
+*/rawdata/*rds
+*/rawdata/*rda
+*.RData
+
+# Exceptions
+!*/metadata/getMetadata.sh
