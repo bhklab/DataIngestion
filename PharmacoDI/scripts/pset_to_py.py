@@ -7,7 +7,7 @@ if 'scripts' not in os.getcwd():
     os.chdir('scripts')
 
 pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[1]
+pset_file = pset_files[0]
 
 
 # TODO: Design PSet class for Python
@@ -140,10 +140,10 @@ pset = readRDS(pset_file)
 pset_py = convert_pset_to_py(pset)
 pset_py
 
-mprof = pset_py['molecularProfiles'].copy()
-
-with open('gCSI_mprof.pkl', 'wb') as f: pickle.dump(mprof, f, -1)
-
-# Open file for writing binary
-with open('gCSI_2017.pkl', 'wb') as outfile:
-    pickle.dump(pset_py, outfile, -1)  # -1 is shorthand for pickle.HIGHEST_PROTOCOL
+# mprof = pset_py['molecularProfiles'].copy()
+#
+# with open('gCSI_mprof.pkl', 'wb') as f: pickle.dump(mprof, f, -1)
+#
+# # Open file for writing binary
+# with open('gCSI_2017.pkl', 'wb') as outfile:
+#     pickle.dump(pset_py, outfile, -1)  # -1 is shorthand for pickle.HIGHEST_PROTOCOL
