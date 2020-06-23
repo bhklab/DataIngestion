@@ -9,8 +9,9 @@ if 'scripts' not in os.getcwd():
 pset_files = glob.glob('../*/*rds')
 pset_file = pset_files[1]
 
+
 # TODO: Design PSet class for Python
-def convert_pset_to_py(pset_file):
+def convert_pset_to_py(pset):
     """
     Read in .rds file of a PSet and parse each object slot into a nested dictionary replicating the PSet
     structure.
@@ -19,14 +20,6 @@ def convert_pset_to_py(pset_file):
     :return: [dict] Nested Python dictionaries holding each item of the R PSet at a key within
         it the respective dictionary.
     """
-    # Allow compatible R objects to be returned as Python objects
-    # - This avoids repeatedly calling pandas2ri.ri2py() for conversions
-    # - Supported types include vectors, matrices, lists and data.frames
-    pandas2ri.activate()
-
-    readRDS = r["readRDS"]
-    pset = readRDS(pset_file)
-
     molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
 
     py_pset = {
@@ -46,15 +39,14 @@ def convert_pset_to_py(pset_file):
 
 def rlist_to_dict(robj):
     """
-    Accepts an rpy2 R list object and converts it to a Python dictionary. All objects
-    in the list are also converted to Python objects. Note the conversion may lead to
+    Accepts an rpy2 R list object and converts it to a Python dictionary.
 
     :param robj: [R 'list'] Named R list object.
     :return: [dict] R list as a dict with all list elements coerced to Python objects.
     """
     # Handle empty list case
     if not list(robj):
-        return None
+        return list(robj)
     else:
         dictionary = dict(zip(robj.names, list(robj)))
         return dictionary
@@ -71,9 +63,9 @@ def try_catch(expr, error, environment):
     :return: `expr` evaluated with `environment` or `error` if the evaluation returns an error
     """
     try:
-        return(eval(expr, environment))
+        return (eval(expr, environment))
     except:
-        return(error)
+        return (error)
 
 
 def r_s4_to_dict(object, recursive=False):
@@ -86,7 +78,8 @@ def r_s4_to_dict(object, recursive=False):
         appropriate Python object, but nested S4 classes must be managed manually.
     """
     # Convert S4 object to dictionary
-    dct = {name: try_catch('object.slots[name]', None, {'name': name, 'object': object}) for name in list(object.slotnames())}
+    dct = {name: try_catch('object.slots[name]', None, {'name': name, 'object': object}) for name in
+           list(object.slotnames())}
 
     # Convert any R list
     dct = {key: rlist_to_dict(val) if 'ListVector' in str(type(val)) else val for key, val in dct.items()}
@@ -116,24 +109,41 @@ def r_summarizedexperiment_to_dict(object):
 
     # Deal with metadata
     metadata = se['metadata']
-    metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in metadata.items()}
+    metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in
+                metadata.items()}
 
     # Extract slot data and convert to Python
     py_se = {
         'colData': as_data_frame(se['colData']),
         ## TODO:: Determine if there is every useful information in the other slots of a SimpleList?
-        'assays':  r_s4_to_dict(se['assays'].slots['data'])['listData'],
+        'assays': r_s4_to_dict(se['assays'].slots['data'])['listData'],
         'NAMES': se['NAMES'],
         'elementMetadata': as_data_frame(se['elementMetadata']),
         'metadata': metadata
     }
     return py_se
 
-## Script
 
-pset_py = convert_pset_to_py(pset_file)
+def recursive_class(dct):
+    return {key: recursive_class(val) if isinstance(val, dict) else type(val) for key, val in dct.items()}
+
+
+## Script
+# Allow compatible R objects to be returned as Python objects
+# - This avoids repeatedly calling pandas2ri.ri2py() for conversions
+# - Supported types include vectors, matrices, lists and data.frames
+pandas2ri.activate()
+
+readRDS = r["readRDS"]
+pset = readRDS(pset_file)
+
+pset_py = convert_pset_to_py(pset)
+pset_py
+
+mprof = pset_py['molecularProfiles'].copy()
+
+with open('gCSI_mprof.pkl', 'wb') as f: pickle.dump(mprof, f, -1)
 
 # Open file for writing binary
-f = open('gCSI_2017.pkl', 'wb')
-
-# Dump PSet into opened object
+with open('gCSI_2017.pkl', 'wb') as outfile:
+    pickle.dump(pset_py, outfile, -1)  # -1 is shorthand for pickle.HIGHEST_PROTOCOL
