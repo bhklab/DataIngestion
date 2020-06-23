@@ -21,7 +21,7 @@ def download_psets(names, save_dir, api_url= "https://www.orcestra.ca/api/psets/
     for name, url in url_dict.items():
         print("Downloading", name, "from", url, sep=" ")
         wget.download(url, save_dir + "/" + name + '.rds')
-
+p
     return None
 
 
