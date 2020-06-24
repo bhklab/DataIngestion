@@ -62,7 +62,7 @@ def try_catch(expr, error, environment):
     :return: `expr` evaluated with `environment` or `error` if the evaluation returns an error
     """
     try:
-        return (eval(expr, environment))c
+        return (eval(expr, environment))
     except:
         return (error)
 
@@ -137,8 +137,11 @@ pandas2ri.activate()
 readRDS = r["readRDS"]
 
 pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[7]
+pset_file = pset_files[0]
 pset = readRDS(pset_file)
+
+pset_py = convert_pset_to_py(pset)
+pset_py
 
 
 # molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
@@ -150,9 +153,6 @@ pset = readRDS(pset_file)
 # se_py = r_summarizedexperiment_to_dict(se)
 
 #
-pset_py = convert_pset_to_py(pset)
-pset_py
-
 
 # mprof = pset_py['molecularProfiles'].copy()
 #
