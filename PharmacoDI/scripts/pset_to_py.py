@@ -23,6 +23,7 @@ def convert_pset_to_py(pset):
     molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
 
     py_pset = {
+        ## FIXME:: Deal with R objects in annotation slot!
         'annotation': rlist_to_dict(pset.slots['annotation']),
         'molecularProfiles': {key: r_summarizedexperiment_to_dict(val) for key, val in molecular_profiles.items()},
         'sensitivity': rlist_to_dict(pset.slots['sensitivity']),
@@ -136,17 +137,17 @@ readRDS = r["readRDS"]
 pset = readRDS(pset_file)
 
 
-molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
-
-profs = tuple(molecular_profiles.keys())
-
-se = molecular_profiles[profs[4]]
-
-se_py = r_summarizedexperiment_to_dict(se)
+# molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
+#
+# profs = tuple(molecular_profiles.keys())
+#
+# se = molecular_profiles[profs[8]]
+#
+# se_py = r_summarizedexperiment_to_dict(se)
 
 #
-# pset_py = convert_pset_to_py(pset)
-# pset_py
+pset_py = convert_pset_to_py(pset)
+pset_py
 
 # mprof = pset_py['molecularProfiles'].copy()
 #
