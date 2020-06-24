@@ -6,9 +6,6 @@ import pickle
 if 'scripts' not in os.getcwd():
     os.chdir('scripts')
 
-pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[2]
-
 
 # TODO: Design PSet class for Python
 def convert_pset_to_py(pset):
@@ -21,11 +18,13 @@ def convert_pset_to_py(pset):
         it the respective dictionary.
     """
     molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
+    if molecular_profiles != []:
+        molecular_profiles = {key: r_summarizedexperiment_to_dict(val) for key, val in molecular_profiles.items()}
 
     py_pset = {
         ## FIXME:: Deal with R objects in annotation slot!
         'annotation': rlist_to_dict(pset.slots['annotation']),
-        'molecularProfiles': {key: r_summarizedexperiment_to_dict(val) for key, val in molecular_profiles.items()},
+        'molecularProfiles': molecular_profiles,
         'sensitivity': rlist_to_dict(pset.slots['sensitivity']),
         'perturbation': rlist_to_dict(pset.slots['perturbation']),
         'drug': pset.slots['drug'],
@@ -37,7 +36,6 @@ def convert_pset_to_py(pset):
 
 
 ## Helper functions
-
 def rlist_to_dict(robj):
     """
     Accepts an rpy2 R list object and converts it to a Python dictionary.
@@ -47,7 +45,7 @@ def rlist_to_dict(robj):
     """
     # Handle empty list case
     if not list(robj):
-        return list(robj)
+        return []
     else:
         dictionary = try_catch('dict(zip(robj.names, list(robj)))', 'list(robj)', locals())
         return dictionary
@@ -79,7 +77,7 @@ def r_s4_to_dict(object, recursive=False):
         appropriate Python object, but nested S4 classes must be managed manually.
     """
     # Convert S4 object to dictionary
-    dct = {name: try_catch('object.slots[name]', None, {'name': name, 'object': object}) for name in list(object.slotnames())}
+    dct = {name: try_catch('object.slots[name]', [], {'name': name, 'object': object}) for name in list(object.slotnames())}
 
     # Convert any R list
     dct = {key: rlist_to_dict(val) if 'ListVector' in str(type(val)) else val for key, val in dct.items()}
@@ -108,16 +106,19 @@ def r_summarizedexperiment_to_dict(object):
     as_data_frame = r['as.data.frame']
 
     # Deal with metadata
-    metadata = se['metadata']
-    metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in metadata.items()}
+    metadata = se.get('metadata')
+    if not list(metadata):
+        metadata = metadata
+    else:
+        metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in metadata.items()}
 
     # Extract slot data and convert to Python
     py_se = {
         'colData': as_data_frame(se['colData']),
-        ## TODO:: Determine if there is every useful information in the other slots of a SimpleList?
-        'assays': r_s4_to_dict(se['assays'].slots['data'])['listData'],
-        'NAMES': se['NAMES'],
-        'elementMetadata': as_data_frame(se['elementMetadata']),
+        ## TODO:: Determine if there is any useful information in the other slots of a SimpleList?
+        'assays': r_s4_to_dict(se.get('assays').slots['data']).get('listData'),
+        'NAMES': se.get('NAMES'),
+        'elementMetadata': as_data_frame(se.get('elementMetadata')),
         'metadata': metadata
     }
     return py_se
@@ -134,6 +135,9 @@ def recursive_class(dct):
 pandas2ri.activate()
 
 readRDS = r["readRDS"]
+
+pset_files = glob.glob('../*/*rds')
+pset_file = pset_files[4]
 pset = readRDS(pset_file)
 
 
@@ -148,6 +152,7 @@ pset = readRDS(pset_file)
 #
 pset_py = convert_pset_to_py(pset)
 pset_py
+
 
 # mprof = pset_py['molecularProfiles'].copy()
 #
