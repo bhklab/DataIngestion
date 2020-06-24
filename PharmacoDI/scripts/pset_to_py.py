@@ -7,7 +7,7 @@ if 'scripts' not in os.getcwd():
     os.chdir('scripts')
 
 pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[0]
+pset_file = pset_files[2]
 
 
 # TODO: Design PSet class for Python
@@ -48,7 +48,7 @@ def rlist_to_dict(robj):
     if not list(robj):
         return list(robj)
     else:
-        dictionary = dict(zip(robj.names, list(robj)))
+        dictionary = try_catch('dict(zip(robj.names, list(robj)))', 'list(robj)', locals())
         return dictionary
 
 
@@ -78,8 +78,7 @@ def r_s4_to_dict(object, recursive=False):
         appropriate Python object, but nested S4 classes must be managed manually.
     """
     # Convert S4 object to dictionary
-    dct = {name: try_catch('object.slots[name]', None, {'name': name, 'object': object}) for name in
-           list(object.slotnames())}
+    dct = {name: try_catch('object.slots[name]', None, {'name': name, 'object': object}) for name in list(object.slotnames())}
 
     # Convert any R list
     dct = {key: rlist_to_dict(val) if 'ListVector' in str(type(val)) else val for key, val in dct.items()}
@@ -109,8 +108,7 @@ def r_summarizedexperiment_to_dict(object):
 
     # Deal with metadata
     metadata = se['metadata']
-    metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in
-                metadata.items()}
+    metadata = {key: r_s4_to_dict(val, recursive=True) if 'S4' in str(type(val)) else val for key, val in metadata.items()}
 
     # Extract slot data and convert to Python
     py_se = {
@@ -137,8 +135,18 @@ pandas2ri.activate()
 readRDS = r["readRDS"]
 pset = readRDS(pset_file)
 
-pset_py = convert_pset_to_py(pset)
-pset_py
+
+molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
+
+profs = tuple(molecular_profiles.keys())
+
+se = molecular_profiles[profs[4]]
+
+se_py = r_summarizedexperiment_to_dict(se)
+
+#
+# pset_py = convert_pset_to_py(pset)
+# pset_py
 
 # mprof = pset_py['molecularProfiles'].copy()
 #
