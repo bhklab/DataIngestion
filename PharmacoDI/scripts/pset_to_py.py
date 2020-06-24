@@ -62,7 +62,7 @@ def try_catch(expr, error, environment):
     :return: `expr` evaluated with `environment` or `error` if the evaluation returns an error
     """
     try:
-        return (eval(expr, environment))
+        return (eval(expr, environment))c
     except:
         return (error)
 
@@ -137,7 +137,7 @@ pandas2ri.activate()
 readRDS = r["readRDS"]
 
 pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[4]
+pset_file = pset_files[7]
 pset = readRDS(pset_file)
 
 
