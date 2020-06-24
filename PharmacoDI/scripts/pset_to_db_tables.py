@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import re
 
 def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/psets/canonical"):
     """
@@ -12,19 +13,19 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
     :param api_url: [string] URL to fetch available PSets from Orecstra, defaults to current URL
     :return: [None] writes .csv files to `save_dir`
     """
-    available_psets = pd.read_json(api_url)
-    canonical_psets = available_psets.loc[available_psets.canonical, 'URL']
+    canonical_names = pd.read_json(api_url).name
+    name = re.sub('_', '.*', pset.get('annotation').get('name')[0])
 
     # ---- Primary tables ----
-    dataset = pd.DataFrame({
+    dataset = pd.DataFrame.from_dict({
         ## TODO:: Determine dataset id from availablePSets df
-        "id": np.where(pset.get('annotation').get('name')[0] in canonical_psets),
-        "name": pset.get('annotation').get('name')[0]
+        "id": [np.where(canonical_names.str.match(name))[0][0] + 1], # Wrap single values in list to make 1 row DF
+        "name": [pset.get('annotation').get('name')[0]],
     })
 
     tissue = pd.DataFrame({
-        'id': 1,
-        'name': [],
+        'id': np.arange(len(pset.get('cell')['tissueid'].unique())) + 1,
+        'name': pset.get('cell')['tissueid'].unique(),
     })
 
     cell = pd.DataFrame({

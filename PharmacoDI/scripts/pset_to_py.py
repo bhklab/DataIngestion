@@ -144,7 +144,7 @@ readRDS = r["readRDS"]
 
 pset_files = glob.glob('../*/*rds')
 
-pset_file = pset_files[7]
+pset_file = pset_files[2]
 pset = readRDS(pset_file)
 
 ## FIXME:: Boolean columns in R data.frame being converted to TRUE=1, FALSE=-2147483648
@@ -160,7 +160,6 @@ pset_py
 #
 # se_py = r_summarizedexperiment_to_dict(se)
 
-#
 
 # mprof = pset_py['molecularProfiles'].copy()
 #
