@@ -53,8 +53,8 @@ def rlist_to_dict(robj):
 
 def try_catch(expr, error, environment):
     """
-    One line function replicating the tryCatch function from R. Returns the result of `expr` if it successfully
-    executes, otherwise returns `error`
+    One line function replicating the tryCatch function from R. Returns the result of `expr` evaluated in `environment`
+    if it successfully executes, otherwise returns `error`
 
     :param expr: [string] quoted version of the Python code you wish to execute
     :param error: [any] what to return if evaluation of `expr` fails
@@ -125,6 +125,12 @@ def r_summarizedexperiment_to_dict(object):
 
 
 def recursive_class(dct):
+    """
+    Recursively get the class of objects in a nested dictionary tree
+
+    :param dct: [dict] a dictionary or nested dictionary to get the classes for
+    :return: [dict] a dictionary with the same keys are the `dct` and values as the class at each key
+    """
     return {key: recursive_class(val) if isinstance(val, dict) else type(val) for key, val in dct.items()}
 
 
@@ -138,9 +144,10 @@ readRDS = r["readRDS"]
 
 pset_files = glob.glob('../*/*rds')
 
-pset_file = pset_files[5]
+pset_file = pset_files[7]
 pset = readRDS(pset_file)
 
+## FIXME:: Boolean columns in R data.frame being converted to TRUE=1, FALSE=-2147483648
 pset_py = convert_pset_to_py(pset)
 pset_py
 
