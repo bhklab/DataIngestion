@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/psets/available"):
+def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/psets/canonical"):
     """
     Take in a Python dictionary of a PSet and convert it to database tables for PharmacoDB, with a .csv file for
     each table saved to `save_dir`.

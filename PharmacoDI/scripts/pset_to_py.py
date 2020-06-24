@@ -137,7 +137,8 @@ pandas2ri.activate()
 readRDS = r["readRDS"]
 
 pset_files = glob.glob('../*/*rds')
-pset_file = pset_files[0]
+
+pset_file = pset_files[5]
 pset = readRDS(pset_file)
 
 pset_py = convert_pset_to_py(pset)
