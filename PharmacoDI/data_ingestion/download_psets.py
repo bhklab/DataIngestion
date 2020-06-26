@@ -4,7 +4,7 @@ import wget
 canonical_psets = ["CCLE_2015", "FIMM_2016", "GRAY_2017", "CTRPv2_2015", "gCSI_2017", "GDSC_2020(v1-8.2)",
                     "GDSC_2020(v2-8.2)", "GDSC_2020(v1-8.2)", "UHNBreast_2019"]
 
-save_dir = "rawdata"
+save_dir = "data/rawdata"
 
 def download_psets(names, save_dir, api_url= "https://www.orcestra.ca/api/psets/available"):
     """

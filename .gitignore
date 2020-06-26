@@ -1,10 +1,10 @@
 # Ignore
-*/metadata/Annotations
-*/metadata/*
-*/rawdata/*
+PharmacoDI/data_ingestion/data/metadata/Annotations
+PharmacoDI/data_ingestion/data/metadata/*
+PharmacoDI/data_ingestion/data/rawdata/*
 *.RData
 
 # Exceptions
-!*/metadata/getMetadata.sh
-!*/rawdata/downloadPSets.sh
+!PharmacoDI/data_ingestion/data/metadata/getMetadata.sh
+!PharmacoDI/data_ingestion/data/rawdata/downloadPSets.sh
 !*placeholder.txt

@@ -18,7 +18,6 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
 
     # ---- Primary tables ----
     dataset = pd.DataFrame.from_dict({
-        ## TODO:: Determine dataset id from availablePSets df
         "id": [np.where(canonical_names.str.match(name))[0][0] + 1], # Wrap single values in list to make 1 row DF
         "name": [pset.get('annotation').get('name')[0]],
     })
