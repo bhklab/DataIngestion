@@ -1,11 +1,4 @@
-import glob
-import os
 from rpy2.robjects import r, pandas2ri
-import pickle
-
-if 'scripts' not in os.getcwd():
-    os.chdir('scripts')
-
 
 # TODO: Design PSet class for Python
 def convert_pset_to_py(pset):
@@ -17,6 +10,8 @@ def convert_pset_to_py(pset):
     :return: [dict] Nested Python dictionaries holding each item of the R PSet at a key within
         it the respective dictionary.
     """
+    pandas2ri.activate()
+
     molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
     if molecular_profiles != []:
         molecular_profiles = {key: r_summarizedexperiment_to_dict(val) for key, val in molecular_profiles.items()}
@@ -133,38 +128,3 @@ def recursive_class(dct):
     """
     return {key: recursive_class(val) if isinstance(val, dict) else type(val) for key, val in dct.items()}
 
-
-## Script
-# Allow compatible R objects to be returned as Python objects
-# - This avoids repeatedly calling pandas2ri.ri2py() for conversions
-# - Supported types include vectors, matrices, lists and data.frames
-pandas2ri.activate()
-
-readRDS = r["readRDS"]
-
-pset_files = glob.glob('../*/*rds')
-
-pset_file = pset_files[2]
-pset = readRDS(pset_file)
-
-## FIXME:: Boolean columns in R data.frame being converted to TRUE=1, FALSE=-2147483648
-pset_py = convert_pset_to_py(pset)
-pset_py
-
-
-# molecular_profiles = rlist_to_dict(pset.slots['molecularProfiles'])
-#
-# profs = tuple(molecular_profiles.keys())
-#
-# se = molecular_profiles[profs[8]]
-#
-# se_py = r_summarizedexperiment_to_dict(se)
-
-
-# mprof = pset_py['molecularProfiles'].copy()
-#
-# with open('gCSI_mprof.pkl', 'wb') as f: pickle.dump(mprof, f, -1)
-#
-# # Open file for writing binary
-# with open('gCSI_2017.pkl', 'wb') as outfile:
-#     pickle.dump(pset_py, outfile, -1)  # -1 is shorthand for pickle.HIGHEST_PROTOCOL

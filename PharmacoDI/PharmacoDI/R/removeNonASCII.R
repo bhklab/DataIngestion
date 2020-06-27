@@ -16,4 +16,3 @@ removeNonASCII <- function(df) {
   DT[, (charCols) := lapply(.SD, iconv, from='ascii', to='ascii', sub=''), .SDcols=charCols]
   return(data.frame(DT[, -'rn'], row.names=DT$rn))
 }
-
