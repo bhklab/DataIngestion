@@ -24,71 +24,53 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
         "name": [pset.get('annotation').get('name')[0]],
     })
 
+
     ## ---- tissue
     tissue = pd.DataFrame({
         'id': np.arange(len(pset.get('cell')['tissueid'].unique())) + 1,
         'name': pset.get('cell')['tissueid'].unique(),
     })
 
+
+    ## ---- cell
+    # preprocess cell_info for unqiue cellid:tissueid combinations and map tissue_id to tissue name
     cell_info = pset.get('cell')
     tissue_id_map = dict(zip(tissue.name, tissue.id))
     cell_info['tissue_id'] = [tissue_id_map[tissue_id] for tissue_id in cell_info.tissueid.to_numpy()] # .to_numpy() should speed up iteration
+
+    # build cell db table
     cell = cell_info[['cellid', 'tissue_id']].copy()
     cell.insert(0, 'id', np.arange(1, len(cell_info.cellid) + 1))
     cell.columns = ['id', 'name', 'tissue_id']
 
+
     ## ---- compound
     compound = pd.DataFrame({
-        "id": 1,
-        "name": []
+        "id": np.arange(1, len(pset.get('drug').drugid) + 1),
+        "name": pset.get('drug').drugid
     })
 
-    ## gene
+
+    ## ---- gene
+
+
     gene = pd.DataFrame({
-        "id": 1,
+        "id": ,
         "name": []
     })
 
-    ## target
+    ## ---- target
     target = pd.DataFrame({
         "id": 1,
         "name": [],
         "gene_id": []
     })
 
-
     # ---- Annotation tables ----
-    compound_annotation = pd.DataFrame({
-        "drug_id": 1,
-        "name": []
-    })
-
-    compound_target = pd.DataFrame({
-        "id": 1,
-        "name": []
-    })
-
-    gene_annotations = pd.DataFrame({
-        "id": 1,
-        "name": []
-    })
-
-    cellosaurus = pd.DataFrame({
-        "id": 1,
-        "name": []
-    })
-
-    dataset_statistics = pd.DataFrame({
-        "id": 1,
-        "name": []
-    })
-
-
-    # ---- Derived tables ----
 
     ## ---- cellosaurus
     cellosaurus = pd.DataFrame({
-        'id': np.arange(1, len(cell.id) + 1), ## FIXME: Do can't we just use cell_id as PK?
+        'id': np.arange(1, len(cell.id) + 1), ## FIXME: Can't we just use cell_id as PK?
         'cell_id': cell.id,
         'identifier': cell_info['COSMIC.identifier'],
         'accession': cell_info['Cellosaurus.Accession.id'],
@@ -106,6 +88,35 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
         'sx': np.repeat(None, len(cell.id)),
         'ca': np.repeat(None, len(cell.id)),
     })
+
+    compound_annotation = pd.DataFrame({
+        "compound_id": compound.id,
+        "name": compound.name,
+        'smiles': pset.get('drug').smiles,
+        'inchikey': pset.get('drug').inchikey,
+        'pubchem': pset.get('drug').cid,
+        'fda': [0 if fda < 0 else 1 for fda in pset.get('drug').FDA]
+    })
+
+    compound_target = pd.DataFrame({
+        "id": 1,
+        "name": []
+    })
+
+    gene_annotations = pd.DataFrame({
+        "id": 1,
+        "name": []
+    })
+
+    dataset_statistics = pd.DataFrame({
+        "id": 1,
+        "name": []
+    })
+
+
+    # ---- Derived tables ----
+
+
 
 
     # ---- Join tables ----
