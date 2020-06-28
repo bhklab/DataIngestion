@@ -7,4 +7,5 @@ global-include *.py
 
 # Exclude from package installer
 recursive-exclude data *
+recursive-exclude scripts *
 recursive-exclude dist *

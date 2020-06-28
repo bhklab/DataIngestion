@@ -17,32 +17,39 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
     name = re.sub('_', '.*', pset.get('annotation').get('name')[0])
 
     # ---- Primary tables ----
+
+    ## ---- dataset
     dataset = pd.DataFrame.from_dict({
         "id": [np.where(canonical_names.str.match(name))[0][0] + 1], # Wrap single values in list to make 1 row DF
         "name": [pset.get('annotation').get('name')[0]],
     })
 
+    ## ---- tissue
     tissue = pd.DataFrame({
         'id': np.arange(len(pset.get('cell')['tissueid'].unique())) + 1,
         'name': pset.get('cell')['tissueid'].unique(),
     })
 
-    cell = pd.DataFrame({
-        "id": 1,
-        "name": [],
-        "tissue_id": [],
-    })
+    cell_info = pset.get('cell')
+    tissue_id_map = dict(zip(tissue.name, tissue.id))
+    cell_info['tissue_id'] = [tissue_id_map[tissue_id] for tissue_id in cell_info.tissueid.to_numpy()] # .to_numpy() should speed up iteration
+    cell = cell_info[['cellid', 'tissue_id']].copy()
+    cell.insert(0, 'id', np.arange(1, len(cell_info.cellid) + 1))
+    cell.columns = ['id', 'name', 'tissue_id']
 
+    ## ---- compound
     compound = pd.DataFrame({
         "id": 1,
         "name": []
     })
 
+    ## gene
     gene = pd.DataFrame({
         "id": 1,
         "name": []
     })
 
+    ## target
     target = pd.DataFrame({
         "id": 1,
         "name": [],
@@ -79,6 +86,26 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
 
     # ---- Derived tables ----
 
+    ## ---- cellosaurus
+    cellosaurus = pd.DataFrame({
+        'id': np.arange(1, len(cell.id) + 1), ## FIXME: Do can't we just use cell_id as PK?
+        'cell_id': cell.id,
+        'identifier': cell_info['COSMIC.identifier'],
+        'accession': cell_info['Cellosaurus.Accession.id'],
+        'as': np.repeat(None, len(cell.id)),
+        'sy': np.repeat(None, len(cell.id)),
+        'dr': np.repeat(None, len(cell.id)),
+        'rx': np.repeat(None, len(cell.id)),
+        'ww': np.repeat(None, len(cell.id)),
+        'cc': np.repeat(None, len(cell.id)),
+        'st': np.repeat(None, len(cell.id)),
+        'di': np.repeat(None, len(cell.id)),
+        'ox': np.repeat(None, len(cell.id)),
+        'hi': np.repeat(None, len(cell.id)),
+        'oi': np.repeat(None, len(cell.id)),
+        'sx': np.repeat(None, len(cell.id)),
+        'ca': np.repeat(None, len(cell.id)),
+    })
 
 
     # ---- Join tables ----
