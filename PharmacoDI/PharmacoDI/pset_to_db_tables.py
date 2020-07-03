@@ -4,7 +4,8 @@ import glob
 import os
 import re
 
-def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"), annot_dir=os.path.join("..", "data", "metadata"),
+def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
+                      annot_dir=os.path.join("..", "data", "metadata"),
                       api_url= "https://www.orcestra.ca/api/psets/canonical"):
     """
     Take in a Python dictionary of a PSet and convert it to database tables for PharmacoDB, with a .csv file for
@@ -61,13 +62,10 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"), ann
     gene_annots = {re.sub(r"^.*/Gencode\.[^\.]*\.|.csv$", "",  file): pd.read_csv(file) for
                    file in glob.glob(os.path.join(annot_dir, "Gencode.v33*.csv"))}
 
-
-
     gene = pd.DataFrame({
-        "id": ,
-        "name": []
+        "id": np.arange(1, len(rnaseq_df.rownames) + 1),
+        "name": rnaseq_df.rownames
     })
-
 
 
     ## ---- target
@@ -115,8 +113,10 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"), ann
     })
 
     gene_annotations = pd.DataFrame({
-        "id": 1,
-        "name": []
+        "id": gene.id,
+        "symbol": rnaseq_df.gene_name,
+        "gene_seq_start": rnaseq_df.start,
+        "gene_seq_end": rnaseq_df.end,
     })
 
     dataset_statistics = pd.DataFrame({
