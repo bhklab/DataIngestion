@@ -1,8 +1,11 @@
 import pandas as pd
 import numpy as np
+import glob
+import os
 import re
 
-def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/psets/canonical"):
+def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"), annot_dir=os.path.join("..", "data", "metadata"),
+                      api_url= "https://www.orcestra.ca/api/psets/canonical"):
     """
     Take in a Python dictionary of a PSet and convert it to database tables for PharmacoDB, with a .csv file for
     each table saved to `save_dir`.
@@ -52,12 +55,20 @@ def pset_to_db_tables(pset, save_dir, api_url= "https://www.orcestra.ca/api/pset
 
 
     ## ---- gene
+    rnaseq_df = pset.get("molecularProfiles").get("Kallisto_0.46.1.rnaseq").get("elementMetadata")
+    rna_df = pset.get("molecularProfiles").get("rna").get("elementMetadata")
+
+    gene_annots = {re.sub(r"^.*/Gencode\.[^\.]*\.|.csv$", "",  file): pd.read_csv(file) for
+                   file in glob.glob(os.path.join(annot_dir, "Gencode.v33*.csv"))}
+
 
 
     gene = pd.DataFrame({
         "id": ,
         "name": []
     })
+
+
 
     ## ---- target
     target = pd.DataFrame({
