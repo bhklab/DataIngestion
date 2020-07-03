@@ -15,6 +15,8 @@ geneAnnotationToCSV <- function(filePath=file.path("..", "data", "metadata"), pa
 
     for (names in fileNames) {
         for (name in names) {
+            message(paste0("Saving ", name, " to ",
+                           paste0(gsub("\\*", '', pattern), name, ".csv")))
             fwrite(data.table(get(name), keep.rownames="rownames"),
                    file=file.path(filePath, paste0(gsub("\\*", '', pattern), name, ".csv")))
         }
