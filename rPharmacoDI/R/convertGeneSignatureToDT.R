@@ -10,11 +10,12 @@
 #' @export
 convertGeneSignatureToDT <- function(geneSig) {
     geneSigDT <- data.table(geneSig@.Data[,,], keep.rownames='gene')
-    geneSigDT[, `:=`(pSet=rep(geneSig@PSetName, nrow(geneSigDT)),
-                     drug=geneSig@Arguments$drugs,
-                     mDataType=geneSig@Arguments$mDataType)]
+    geneSigDT$pSet <- rep(geneSig@PSetName, nrow(geneSigDT))
+    geneSigDT$drug <- geneSig@Arguments$drugs
+    geneSigDT$mDataType <- geneSig@Arguments$mDataType
     return(geneSigDT)
 }
+
 
 #' Takes in the path to a set of gene signature .rds files, selects those pathing `pSetPattern` and converts them
 #'
@@ -37,6 +38,7 @@ readGeneSigsForPSet <- function(dataDir, pSetPattern, BPPARAM=BiocParallel::bppa
     return(pSetGeneSigs)
 }
 
+
 #' Merge the results data for a list of `PharmacoSig` objects containing different gene signatures into a single,
 #'    fully annotated long `data.table` and optionally save to disk as a .csv file
 #'
@@ -47,19 +49,20 @@ readGeneSigsForPSet <- function(dataDir, pSetPattern, BPPARAM=BiocParallel::bppa
 #'
 #' @return A long [`data.table`] containing the gene signature statistics for each drug x gene x tissue combination
 #'
+#' @improtFrom BiocParallel bplapply bpparam
 #' @import data.table
 #' @export
-mergePSetGeneSigsToDT <- function(geneSigL, saveDir, fileName) {
-    geneSigDTs <- bplapply(geneSigL, convertGeneSignatureToDT)
+mergePSetGeneSigsToDT <- function(geneSigL, saveDir, fileName, BPPARAM=bpparam()) {
+    geneSigDTs <- bplapply(geneSigL, convertGeneSignatureToDT, BPPARAM=BPPARAM)
     tissues <- gsub("^.*_", "", names(geneSigL))
 
-    .annotTissue <- function(DT, tissueName) {DT[["tissue"]] <- rep(tissueName, nrow(DT)); return(DT)}
+    .annotateTissue <- function(DT, tissueName) {DT[["tissue"]] <- rep(tissueName, nrow(DT)); return(DT)}
     # TODO:: Determine if I change geneSigL to geneSigE (environment), can I modify each DT by reference without needing to copy the environment?
-    geneSigDTs <- mapply(FUN=.annotTissue,
+    geneSigDTs <- mapply(FUN=.annotateTissue,
                          DT=geneSigDTs, tissueName=tissues,
                          SIMPLIFY=FALSE)
 
-    longGeneSigDT <- rbindlist(geneSigDTs)
+    longGeneSigDT <- rbindlist(geneSigDTs, fill=TRUE)
 
     # Save to disk or return
     ## TODO:: Add try catch to deal with not existent directories
