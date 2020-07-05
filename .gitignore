@@ -6,6 +6,7 @@ PharmacoDI/data/rawdata/*
 .idea
 rPharmacoDI/data/rawdata/*
 rPharmacoDI/data/metadata/*
+rPharmacoDI/scripts
 
 # Exceptions
 !PharmacoDI/data/metadata/getMetadata.sh

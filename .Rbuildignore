@@ -1,0 +1,6 @@
+scripts
+scripts/*
+data/rawdata
+data/rawdata/*
+.idea/*
+.gitignore
