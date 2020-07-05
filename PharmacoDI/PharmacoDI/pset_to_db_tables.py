@@ -62,11 +62,18 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
     gene_annots = {re.sub(r"^.*/Gencode\.[^\.]*\.|.csv$", "",  file): pd.read_csv(file) for
                    file in glob.glob(os.path.join(annot_dir, "Gencode.v33*.csv"))}
 
+    # Extract individual annotations from dict
+    feature_genes, feature_transcript, tx2gene = gene_annots.values()
+
+    # Coerce pset datatypes to match gene annotations (some weird stuff happens when converting from R object)
+    rnaseq_df = rnaseq_df.astype(feature_genes.dtypes.to_dict())
+
     gene = pd.DataFrame({
         "id": np.arange(1, len(rnaseq_df.rownames) + 1),
         "name": rnaseq_df.rownames
     })
 
+    ensg = gene.name.apply(lambda name: re.sub(r"\..*$", "", name))
 
     ## ---- target
     target = pd.DataFrame({
@@ -97,6 +104,8 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
         'sx': np.repeat(None, len(cell.id)),
         'ca': np.repeat(None, len(cell.id)),
     })
+
+    ## TODO: Parse cellosaurus text file into DataFrame
 
     compound_annotation = pd.DataFrame({
         "compound_id": compound.id,
