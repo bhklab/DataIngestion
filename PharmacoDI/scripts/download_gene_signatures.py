@@ -5,7 +5,7 @@ import sys
 
 
 def download_gene_signatures(user=None, password=None, remote="niagara.computecanada.ca", opts={},
-                             remote_path="/scratch/b/bhaibeka/psmirnov/pearson_perm_res", save_dir="../data/rawdata/gene_signatures"):
+                             remote_path="/scratch/b/bhaibeka/psmirnov/pearson_perm_res", save_dir="../data/rawdata/rawdata"):
     """
     Download all precomputed gene signatures from the `remote_path` directory on the `remote` server, excluding those
     already in `save_dir`.

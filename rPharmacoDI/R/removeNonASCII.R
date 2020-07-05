@@ -1,8 +1,3 @@
-# Title     : removeNonASCII
-# Objective : efficiently remove all non-ASCII characters from a data.frame, returning the updated data.frame
-# Created by: ceeles
-# Created on: 2020-06-24
-
 #' Remove all non-ascii characters from a data.frame
 #'
 #' @param df [`data.frame`] to purge of non-ASCII character
