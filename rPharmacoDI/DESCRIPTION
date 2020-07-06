@@ -8,8 +8,8 @@ Description: The rPharmacoDI packages provides functions to exporting a pSet obj
     for downloading additional data needed for PharmacoDB table generation will be included, including to get any
     precomputed R objects to speed up table creation as well as any required metadata.
 Author@R: c(
-  person("Eeles", "Christopher", email="christopher.eeles@uhnresearch.ca", role=c("aut")),
-  person("Haibe-Kains, "Benjamin", email="benjamin.haibe.kains@utoronto.ca", role=c("aut", "cre")
+  person("Christopher", "Eeles", email="christopher.eeles@uhnresearch.ca", role=c("aut")),
+  person("Benjamin, "Haibe-Kains", email="benjamin.haibe.kains@utoronto.ca", role=c("aut", "cre"))
   )
 License: MIT + file LICENSE
 Depends: R (>= 4.0), PharmacoGx

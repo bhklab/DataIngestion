@@ -1,5 +1,6 @@
 import PharmacoDI as di
 import os
+import re
 import glob
 import pandas as pd
 from rpy2.robjects import r, pandas2ri
@@ -19,7 +20,7 @@ readRDS = r["readRDS"]
 
 pset_files = glob.glob('../data/rawdata/*rds')
 
-pset_file = pset_files[6]
+pset_file = pset_files[2]
 pset = readRDS(pset_file)
 
 # FIXME:: Boolean columns in R data.frame being converted to TRUE=1, FALSE=-2147483648

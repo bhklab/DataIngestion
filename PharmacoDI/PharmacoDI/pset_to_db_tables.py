@@ -6,7 +6,7 @@ import re
 
 def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
                       annot_dir=os.path.join("..", "data", "metadata"),
-                      api_url= "https://www.orcestra.ca/api/psets/canonical"):
+                      api_url="https://www.orcestra.ca/api/psets/canonical"):
     """
     Take in a Python dictionary of a PSet and convert it to database tables for PharmacoDB, with a .csv file for
     each table saved to `save_dir`.
@@ -37,7 +37,7 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
 
 
     ## ---- cell
-    # preprocess cell_info for unqiue cellid:tissueid combinations and map tissue_id to tissue name
+    # preprocess cell_info for unique cellid:tissueid combinations and map tissue_id to tissue name
     cell_info = pset.get('cell')
     tissue_id_map = dict(zip(tissue.name, tissue.id))
     cell_info['tissue_id'] = [tissue_id_map[tissue_id] for tissue_id in cell_info.tissueid.to_numpy()] # .to_numpy() should speed up iteration
@@ -75,11 +75,15 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
 
     ensg = gene.name.apply(lambda name: re.sub(r"\..*$", "", name))
 
+
+    # Define a dict mapping gene name to gene id
+    gene_to_geneid_map = gene.set_index('name').to_dict()
+
     ## ---- target
     target = pd.DataFrame({
-        "id": 1,
-        "name": [],
-        "gene_id": []
+        "id": np.arange(1, len(pset.get("drug")['TARGET'])),
+        "name": pset.get("drug")["TARGET"],
+        "gene_id": pset.get("drug")["drugid"].map(gene_to_geneid_map)
     })
 
     # ---- Annotation tables ----
@@ -136,7 +140,7 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
 
     # ---- Derived tables ----
 
-
+    compound_drug = pd.read_csv(glob.glob(os.path.join(annot_dir, "gene_signature", "GDSCV1"))
 
 
     # ---- Join tables ----
