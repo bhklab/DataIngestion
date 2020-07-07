@@ -40,3 +40,8 @@ name = re.sub('_', '.*', pset.get('annotation').get('name')[0])
 
 annot_dir = os.path.join("..", "data", "metadata")
 save_dir = os.path.join("..", "data", "procdata")
+
+home = os.environ['HOME']
+data_dir = os.path.join(home, "Development", "DataIngestion", "PharmacoDI", "data", "rawdata")
+
+

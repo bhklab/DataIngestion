@@ -5,10 +5,12 @@ import numpy as np
 import urllib
 import requests
 from io import StringIO
+from lxml import etree
 
 def get_target_annotations(pset, annot_dir):
     """
-
+    Annotate a the 'TARGET' in the 'drug' slot of a PSet object using mapping from the UniProt idenitifer
+    mapping tool API.
 
     :param pset:
     :param annot_dir:
@@ -22,10 +24,17 @@ def get_target_annotations(pset, annot_dir):
     genes_to_drugs = pd.merge(drug_targets.loc[:, ['Name', 'Gene Name', 'Drug IDs']],
                               rnaseq_df.loc[:, ['gene_name', 'gene_id']],
                               left_on='Gene Name', right_on='gene_name')
+
+    # Annotate the genes
+
+
+    # Expand list columns into rows and annotate drugs
     genes_to_drugs['Drug IDs'] = [str.split(ids, '; ') for ids in genes_to_drugs['Drug IDs'].values]
     genes_to_drugs = genes_to_drugs.explode('Drug IDs')
 
-    file_path = os.path.join(annot_dir, 'drugbank_drug_to_gene_mapplings.csv')
+
+    # Write to disk if necessary.
+    file_path = os.path.join(annot_dir, 'drugbank_drug_to_gene_mappings.csv')
     if not os.isfile(file_path):
         pd.write_csv(genes_to_drugs, file_path)
     pass
