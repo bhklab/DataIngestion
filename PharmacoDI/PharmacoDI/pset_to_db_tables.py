@@ -60,7 +60,7 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
     rna_df = pset.get("molecularProfiles").get("rna").get("elementMetadata")
 
     gene_annots = {re.sub(r"^.*/Gencode\.[^\.]*\.|.csv$", "",  file): pd.read_csv(file) for
-                   file in glob.glob(os.path.join(annot_dir, "Gencode.v33*.csv"))}
+                   file in glob.glob(os.path.join(annot_dir, "Gencode.v33.annotation.*.csv"))}
 
     # Extract individual annotations from dict
     feature_genes, feature_transcript, tx2gene = gene_annots.values()
@@ -76,15 +76,14 @@ def pset_to_db_tables(pset, save_dir=os.path.join("..", "data", "procdata"),
     ensg = gene.name.apply(lambda name: re.sub(r"\..*$", "", name))
 
 
-    # Define a dict mapping gene name to gene id
-    gene_to_geneid_map = gene.set_index('name').to_dict()
-
     ## ---- target
+
+
     target = pd.DataFrame({
         "id": np.arange(1, len(pset.get("drug")['TARGET'])),
         "name": pset.get("drug")["TARGET"],
-        "gene_id": pset.get("drug")["drugid"].map(gene_to_geneid_map)
     })
+
 
     # ---- Annotation tables ----
 

@@ -1,9 +1,10 @@
 import pandas as pd
 from bs4 import BeautifulSoup
-from bs2json import bs2json
-import lxml
+import time
 from selenium import webdriver
 import requests
+
+ensembl_gene_id = 'ENSG00000140465'
 
 
 def get_gene_targets(ensembl_gene_id):
@@ -39,21 +40,22 @@ def get_gene_targets(ensembl_gene_id):
         {key: BeautifulSoup(request.text, 'html.parser') if request.status_code == "200" else None
          for key, request in api_requests.items()}
 
+
 def scrape_genecards(ensembl_gene_id):
     """
     Use headless Firefox browser to make get requests to Genecards despite their anti-scraping software
 
     WARNING: Requires Firefox and geckdriver be installed to work!
 
-    :param ensembl_gene_id: ['string'] The ENSEMBL id for the gene you want to query
+    :param ensembl_gene_id: [string] The ENSEMBL id for the gene you want to query
     :return: [DataFrame] containing the gene card data
     """
     # Configure to run Chrome/Chromium headless
     options = webdriver.FirefoxOptions()
-    options.add_argument("-disable-extensions")
-    options.add_argument("-disable-gpu")
-    options.add_argument("-no-sandbox")
-    options.add_argument("-headless")
+    #options.add_argument("-disable-extensions")
+    #options.add_argument("-disable-gpu")
+    #options.add_argument("-no-sandbox")
+    #options.add_argument("-headless")
 
     # Initialize Chrome/Chromium
     driver = webdriver.Firefox(options=options)
@@ -61,10 +63,14 @@ def scrape_genecards(ensembl_gene_id):
     # Build the HTTP query and use the browser to get it
     ensembl_query = f"https://www.genecards.org/cgi-bin/carddisp.pl?id={ensembl_gene_id.upper()}&idtype=ensembl"
     driver.get(ensembl_query)
+    expand_table_elements = driver.find_elements_by_xpath("//a[@data-role='show-all']")
+    for element in expand_table_elements:
+        time.sleep(1)
+        element.click()
     page_html = driver.page_source
     del driver
 
     # Parse the page HTML to a DataFrame
     parsed_html = BeautifulSoup(page_html, 'html.parser')
-    genecards_dfs = pd.read_html(str(parsed_html.find('table')))
+    genecards_dfs = pd.read_html(str(parsed_html.find_all('table')))
 
