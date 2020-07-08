@@ -1,31 +1,36 @@
-#' Generic for writing an R object to one or more csv files
 #'
-#' @param object [`object`] An R object to dump to csv
-#' @param ... [`pairlist`] Allow definition of new arguments in setMethod
 #'
-#' @export
-setGeneric("writeToCsv", function(object, ...) standardGeneric('writeToCsv'))
+#'
+#'
+#'
+setMethod("writeToCsv")
 
 
 #'
 #'
 #'
-#'
-#'
+#' @import
+#' @expprt
 setMethod("writeToCsv", signature(object="PharmacoSet", path="character"), function(object, path){
 
-    .writeAnnotationsToCsv
+    .writeAnnotationsToCsv(object, path)
 
-    .writeSensitivityToCsv
+    .writeSensitivityToCsv <- function(object, path)
+        fwrite(data.table(object, rownames="row.names"), file=paste)
 
-    .writeSensitivityToCsv
+    .writeSensitivityToCsv()
 
-    .writePerturbationToCsv
+    .writePerturbationToCsv()
 
-    .writeDrugToCsv
+    .writeDrugToCsv()
 
-    .writeDataSetTypeToCsv
+    .writeDataSetTypeToCsv(object, path)
 
-    .writeCellToCSV
+    .writeCellToCSV(object, path)
 
 })
+
+.writeAnnotationToCsv <- function(object, path) {
+
+}
+
