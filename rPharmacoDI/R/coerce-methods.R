@@ -17,14 +17,18 @@ setMethod("coerce",
     assaysDT <- .assaysToLongDT(assays(from), names(assays(from)))
 
     rowDataDT <- data.table(as(rowData(from), 'data.frame'), keep.rownames='features')
+    colnames(rowDataDT) <- paste0('row_', colnames(rowDataDT))
 
     colDataDT <- data.table(as(colData(from), 'data.frame'), keep.rownames='samples')
+
 
     ## TODO:: Determine if there are any other items we need from `metadata`
     if('protocalData' %in% names(metadata(from))) {
                 protocolDataDT <- data.table(as(metadata(from)$protocolData, 'data.frame'), keep.rownames='samples')
         colDataDT <- merge.data.table(colDataDT, protocolDataDT, by='samples')
     }
+
+    colnames(colDataDT) <- paste0('col_', colnames(colDataDT))
 
     # Join colData and rowData to the long assaysDT
     longSummarizedExperiment <- merge.data.table(assaysDT, rowDataDT, by='features',
@@ -57,7 +61,12 @@ setMethod("coerce",
 
         # Metaprogram some R code to join an unknown number of data.tables by key
         codeDataTables <- paste0('assaysDtL[[', seq_along(assaysDtL), ']]')
-        codeOperators <- c('[', rep('][', length(codeDataTables) - 2), ']')
+        if (length(codeDataTables) - 2 > 0) {
+            codeOperators <- c('[', rep('][', length(codeDataTables) - 2), ']')
+        } else {
+            codeOperators <- c('[', ']')
+        }
+
         zippedStrings <- unlist(mapply(c, codeDataTables, codeOperators, SIMPLIFY=FALSE))
         chainedJoinExpression <- parse(text=paste0(zippedStrings, collapse=''))
 
