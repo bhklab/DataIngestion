@@ -90,8 +90,8 @@ setMethod("coerce",
 #' @export
 .assayToLongDT <- function(assay, assayName) {
     DT <- data.table(assay, keep.rownames='features')
-    DT_molten = melt.data.table(DT,  id.vars='features', value.vars=rownames(assay),
+    DTmolten = melt.data.table(DT,  id.vars='features', value.vars=rownames(assay),
                                 variable.name='samples', value.name=paste0('assay_', assayName)) # So we can identify assays vs annotations
-    data.table::setkey(DT_molten, features, samples) # Set keys for joins
-    return(DT_molten)
+    data.table::setkey(DTmolten, features, samples) # Set keys for joins
+    return(DTmolten)
 }
