@@ -26,6 +26,6 @@ Writes to disk, does not return.
 }
 \description{
 Each list item is one line, lines in each item are separated with `sepChar` so they
-   can be split into to their original stucture.
+ can be split into to their original stucture.
 }
 \keyword{internal}

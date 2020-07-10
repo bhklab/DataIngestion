@@ -92,7 +92,7 @@
 #' @importFrom SummarizedExperiment colData rowData
 #' @import data.table
 #'
-#' @export
+#' @noRd
 setMethod("coerce",
     signature(from="SummarizedExperiment", to="data.table"),
     function(from, to) {
@@ -141,8 +141,6 @@ setMethod("coerce",
 #' @importFrom SummarizedExperiment assays
 #'
 #' @noRd
-#' @keywords internal
-#' @export
 .assaysToLongDT <- function(assays, assayNames) {
         # Convert each assay to a data.table, return a list
         assaysDtL <- mapply(FUN=.assayToLongDT,
@@ -176,8 +174,6 @@ setMethod("coerce",
 #'     column names are in the `samples` column
 #'
 #' @noRd
-#' @keywords internal
-#' @export
 .assayToLongDT <- function(assay, assayName) {
     DT <- data.table(assay, keep.rownames='features')
     DTmolten = melt.data.table(DT,  id.vars='features', value.vars=rownames(assay),
