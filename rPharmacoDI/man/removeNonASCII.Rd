@@ -9,6 +9,9 @@ removeNonASCII(df)
 \arguments{
 \item{df}{[`data.frame`] to purge of non-ASCII character}
 }
+\value{
+[`data.frame`] with all character columns stripped of non-ASCII characters
+}
 \description{
 Remove all non-ascii characters from a data.frame
 }

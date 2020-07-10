@@ -5,7 +5,7 @@
 \title{Merge the results data for a list of `PharmacoSig` objects containing different gene signatures into a single,
    fully annotated long `data.table` and optionally save to disk as a .csv file}
 \usage{
-mergePSetGeneSigsToDT(geneSigL, saveDir, fileName)
+mergePSetGeneSigsToDT(geneSigL, saveDir, fileName, BPPARAM = bpparam())
 }
 \arguments{
 \item{geneSigL}{[`list`] of `PharmacoSig` objects, as returned by `readGeneSigsForPSet`}

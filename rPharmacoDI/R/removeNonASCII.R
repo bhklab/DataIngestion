@@ -1,7 +1,8 @@
 #' Remove all non-ascii characters from a data.frame
 #'
 #' @param df [`data.frame`] to purge of non-ASCII character
-#' @value [`data.frame`] with all character columns stripped of non-ASCII characters
+#'
+#' @return [`data.frame`] with all character columns stripped of non-ASCII characters
 #'
 #' @import data.table
 #' @export

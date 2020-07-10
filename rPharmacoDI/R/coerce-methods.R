@@ -17,23 +17,28 @@ setMethod("coerce",
     assaysDT <- .assaysToLongDT(assays(from), names(assays(from)))
 
     rowDataDT <- data.table(as(rowData(from), 'data.frame'), keep.rownames='features')
-    colnames(rowDataDT) <- paste0('row_', colnames(rowDataDT))
+    colnames(rowDataDT)[-1] <- paste0('row_', colnames(rowDataDT)[-1])
 
     colDataDT <- data.table(as(colData(from), 'data.frame'), keep.rownames='samples')
 
 
     ## TODO:: Determine if there are any other items we need from `metadata`
     if('protocalData' %in% names(metadata(from))) {
-                protocolDataDT <- data.table(as(metadata(from)$protocolData, 'data.frame'), keep.rownames='samples')
+                protocolDataDT <- data.table(as(metadata(from)$protocolData, 'data.frame'),
+                                             keep.rownames='samples')
         colDataDT <- merge.data.table(colDataDT, protocolDataDT, by='samples')
     }
 
-    colnames(colDataDT) <- paste0('col_', colnames(colDataDT))
+    colnames(colDataDT)[-1] <- paste0('col_', colnames(colDataDT)[-1])
 
     # Join colData and rowData to the long assaysDT
-    longSummarizedExperiment <- merge.data.table(assaysDT, rowDataDT, by='features',
+    setkey(assaysDT, features)
+    setkey(rowDataDT, features)
+    longSummarizedExperiment <- merge.data.table(assaysDT, rowDataDT,
                                                  allow.cartesion=TRUE, fill.missing=TRUE)
-    longSummarizedExperiment <- merge.data.table(longSummarizedExperiment, colDataDT, by='samples',
+    setkey(longSummarizedExperiment, samples)
+    setkey(colDataDT, samples)
+    longSummarizedExperiment <- merge.data.table(longSummarizedExperiment, colDataDT,
                                                  allow.cartesian=TRUE, fill.missing=TRUE)
 
     return(longSummarizedExperiment)

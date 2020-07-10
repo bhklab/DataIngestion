@@ -49,7 +49,7 @@ readGeneSigsForPSet <- function(dataDir, pSetPattern, BPPARAM=BiocParallel::bppa
 #'
 #' @return A long [`data.table`] containing the gene signature statistics for each drug x gene x tissue combination
 #'
-#' @improtFrom BiocParallel bplapply bpparam
+#' @importFrom BiocParallel bplapply bpparam
 #' @import data.table
 #' @export
 mergePSetGeneSigsToDT <- function(geneSigL, saveDir, fileName, BPPARAM=bpparam()) {
