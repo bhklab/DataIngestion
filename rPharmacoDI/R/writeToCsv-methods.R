@@ -120,6 +120,8 @@ setMethod("writeToCsv", signature(object="PharmacoSet"), function(object, filePa
 #' @export
 .convertSEToDataTableList <- function(SE) {
 
+    if (length(SE) == 0) return(data.table())
+
     # -- feature and sample annotations
     .s4DataFrameToDT <- function(DF, rownameLabel)
         data.table(as(DF, 'data.frame'), keep.rownames=rownameLabel)
@@ -216,7 +218,8 @@ setMethod("writeToCsv", signature(object="PharmacoSet"), function(object, filePa
 .sensSlotToDataTables <- function(sensSlot) {
 
    # -- raw
-   .array3rdDimToDataTable <- function(idx, array, rownameLabel) data.table(array[,,idx], keep.rownames=rownameLabel)
+   .array3rdDimToDataTable <- function(idx, array, rownameLabel)
+       data.table(array[,,idx], keep.rownames=rownameLabel)
    sensRaw <- sensSlot$raw
    sensData <- lapply(seq_len(dim(sensRaw)[3]),
                       FUN=.array3rdDimToDataTable,
