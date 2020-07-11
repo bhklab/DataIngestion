@@ -16,27 +16,29 @@
 setMethod("writeToCsv", signature(object="PharmacoSet"), function(object, filePath) {
 
     objectName <- name(object)
+    pSetDir <- paste0(objectName, '_PSet')
 
-    tryCatch({ dir.create(file.path(filePath, objectName)) },
+    tryCatch({ dir.create(file.path(filePath, pSetDir)) },
              warning=function(w)
-                 message(paste0('\n', objectName,
+                 message(paste0('\n', pSetDir,
                                 ' directory already exists, writing .csv files there\n'))
     )
 
     if (!grepl(paste0('.*', objectName, '$'), filePath)) {
-        filePath <- file.path(filePath, objectName)
+        filePath <- file.path(filePath, pSetDir)
     } else {
         message(paste0('\nFYI: It is not necessay to specify the ',
-                       objectName, 'directroy in `filePath\n'))
+                       pSetDir, 'directroy in `filePath\n. We have
+                       already do that for you :-)\n'))
     }
 
     message(paste0('Writing ', objectName, ' to csv in: \n\t', filePath, '\n'))
 
-    message("      --> Writing molecularProfiles slot to disk\n")
+    message("       --> Writing molecularProfiles slot to disk\n")
     .writeMolecularProfilesToCsv(molecularProfilesSlot(object), filePath, objectName)
 
     # annotation and datasetType
-    message("      --> Writing annotations slot to disk\n")
+    message("       --> Writing annotations slot to disk\n")
     .writeAnnotationToTxt(annotation(object), datasetType(object), filePath, objectName)
 
     if (datasetType(object) %in% c('sensitivity', 'both'))
