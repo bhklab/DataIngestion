@@ -45,7 +45,7 @@ def scrape_genecards(ensembl_gene_id):
     """
     Use headless Firefox browser to make get requests to Genecards despite their anti-scraping software
 
-    WARNING: Requires Firefox and geckdriver be installed to work!
+    WARNING: Requires Firefox and geckodriver be installed to work!
 
     :param ensembl_gene_id: [string] The ENSEMBL id for the gene you want to query
     :return: [DataFrame] containing the gene card data

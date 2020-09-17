@@ -49,7 +49,7 @@ def query_uniprot_mapping_api(ids, convert_from="ACC+ID", to="ENSEMBL_ID"):
     "P_ENTREZGENEID".
 
     Unmatched ids fail silently and will be excluded from the resulting DataFrame. They
-    can be retrieved by redoing you query in manually at https://www.uniprot.org/uploadlists/.
+    can be retrieved by redoing your query in manually at https://www.uniprot.org/uploadlists/.
 
     Documentation for other potential conversions are available at:
         https://www.uniprot.org/help/api_idmapping
@@ -87,5 +87,4 @@ def query_uniprot_mapping_api(ids, convert_from="ACC+ID", to="ENSEMBL_ID"):
     uniprot_mapping_df = pd.read_table(table_data, sep="\t")
 
     return(uniprot_mapping_df)
-
 
