@@ -91,14 +91,16 @@ def pset_df_to_nested_dict(df):
 
 # Table-making functions
 
-def make_pset_dfs(dict):
+def make_pset_dfs(pset_dict):
 
     # primary tables
 
-    tissues = pd.Series(pd.unique(dict['cell']['tissueid']))
+    # make tissues df
+    tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
     tissues_df = pd.DataFrame({'id': tissues.index, 'name': tissues})
 
-    drugs = pd.Series(pd.unique(dict['drug']['rownames']))
+    # make drugs df
+    drugs = pd.Series(pd.unique(pset_dict['drug']['rownames']))
     drugs_df = pd.DataFrame({'id': drugs.index, 'name': drugs})
 
     datasets = None #name of pset
@@ -112,18 +114,28 @@ def make_pset_dfs(dict):
     # non-primary tables
 
     # make the cells df
-    cells = pd.merge(dict['cell'], tissues, on='tissueid', how='left')[['rownames', 'name']]
-    cells.columns = ['id', 'name', 'tissue_id']
+    cells_df = pd.merge(pset_dict['cell'], tissues_df, left_on='tissueid', right_on='name', how='left')[['cellid', 'name']]
+    cells_df.columns = ['name', 'tissue_id']
+    cells_df['id'] = cells_df.index
 
     # make the drug_annotations df
-    drug_annotations = dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
-    drug_annotations.columns = ['name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
-    drug_annotations = pd.merge(drugs, drug_annotations, on='name', how='right')
+    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
+    drug_annotations_df.columns = ['name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
+    drug_annotations_df = pd.merge(drugs_df, drug_annotations_df, on='name', how='right')
     # drop name column once you've merged on it
-    drug_annotations.drop('name', axis='columns', inplace=True)
+    drug_annotations_df.drop('name', axis='columns', inplace=True)
 
-    drug_targets = dict['drug'][['DRUG_ID', 'TARGET']]
-    drug_targets.columns = ['id', 'drug_id', 'target_id']
+    # make the drug_targets df
+    drug_targets_df = pset_dict['drug'][['DRUG_NAME', 'TARGET']]
+    drug_targets_df = pd.merge(drugs_df, drug_targets_df, left_on='name', right_on='DRUG_NAME', how='right')
+    # PROBLEM - some drug names don't map?? Ask Chris
+    # drop name columns after merge
+    drug_targets_df.drop(['name', 'DRUG_NAME'], axis='columns', inplace=True)
+    # rename columns and add primary key
+    drug_targets_df.columns = ['drug_id', 'target_id']
+    drug_targets_df['id'] = drug_targets_df.index
+
+    # make the dose_responses df
     #dose_responses = #take a look at dict['sensitivity']['raw.Dose']
 
 
