@@ -125,7 +125,11 @@ def make_pset_dfs(pset_dict):
     # drop name column once you've merged on it
     drug_annotations_df.drop('name', axis='columns', inplace=True)
 
-    # make the drug_targets df
+    # make the targets df -- NEED TO ADD GENE ID
+    targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
+    targets_df = pd.DataFrame({'id': targets.index, 'name': targets})
+
+    # make the drug_targets df -- NEEDS TO BE MODIFIED TO JOIN WITH TARGET TABLE
     drug_targets_df = pset_dict['drug'][['DRUG_NAME', 'TARGET']]
     drug_targets_df = pd.merge(drugs_df, drug_targets_df, left_on='name', right_on='DRUG_NAME', how='right')
     # PROBLEM - some drug names don't map?? Ask Chris
@@ -135,7 +139,12 @@ def make_pset_dfs(pset_dict):
     drug_targets_df.columns = ['drug_id', 'target_id']
     drug_targets_df['id'] = drug_targets_df.index
 
+    # make experiments df
+
+
     # make the dose_responses df
-    #dose_responses = #take a look at dict['sensitivity']['raw.Dose']
+    #dose_responses = #pset_dict['sensitivity']['raw.Dose']
+    #dose_responses = #pset_dict['sensitivity']['raw.Viability']
+
 
 
