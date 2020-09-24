@@ -91,39 +91,19 @@ def pset_df_to_nested_dict(df):
 
 # Table-making functions
 
-def make_tissue_df(dict):
-    """
-    Create a DataFrame of tissues from a nested dict representing a pset.
+def make_pset_dfs(dict):
 
-    @param df: [`dict`] (pset)
-    @return: [`DataFrame`] (tissue table)
-    """
-    tissues = pd.Series(pd.unique(dict['cell']['tissueid'])).to_frame()
-    # PK?
+    # primary tables
 
-def make_drug_df(dict):
-    """
-    Create a DataFrame of drugs from a nested dict representing a pset.
+    tissues = pd.Series(pd.unique(dict['cell']['tissueid']))
+    tissues_df = pd.DataFrame({'id': tissues.index, 'name': tissues})
 
-    @param df: [`dict`] (pset)
-    @return: [`DataFrame`] (drug table)
-    """
-    drugs = dict['drug']['rownames'] # pretty sure this spits out a series
+    drugs = pd.Series(pd.unique(dict['drug']['rownames']))
+    drugs_df = pd.DataFrame({'id': drugs.index, 'name': drugs})
 
-def make_primary_dfs(dict): # temp fxn until I figure out what's going on
-    # just stick all the tables here for now so i can make more complex ones w foreign keys
-    tissues = pd.Series(pd.unique(dict['cell']['tissueid'])).to_frame()
-    tissues.columns = ['id', 'name']
+    datasets = None #name of pset
+    genes = None #molecularProfiles - RNA - ensembleGeneId
 
-    drugs = dict['drug']['rownames']
-    drugs.columns = ['id', 'name']
-
-    datasets = None #??? idk where to get this
-    genes = None #??? 
-
-    drug_targets = dict['drug'][['DRUG_ID', 'TARGET']]
-    drug_targets.columns = ['id', 'drug_id', 'target_id']
-    #dose_responses = #take a look at dict['sensitivity']['raw.Dose']
     #oncotrees
     #cell_synonyms
     #drug_synonyms
@@ -135,11 +115,15 @@ def make_primary_dfs(dict): # temp fxn until I figure out what's going on
     cells = pd.merge(dict['cell'], tissues, on='tissueid', how='left')[['rownames', 'name']]
     cells.columns = ['id', 'name', 'tissue_id']
 
-    # make the drug_annotations df -- NEED TO SWITCH ROWNAMES for ID from drugs df
+    # make the drug_annotations df
     drug_annotations = dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
     drug_annotations.columns = ['name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
     drug_annotations = pd.merge(drugs, drug_annotations, on='name', how='right')
     # drop name column once you've merged on it
     drug_annotations.drop('name', axis='columns', inplace=True)
 
-    
+    drug_targets = dict['drug'][['DRUG_ID', 'TARGET']]
+    drug_targets.columns = ['id', 'drug_id', 'target_id']
+    #dose_responses = #take a look at dict['sensitivity']['raw.Dose']
+
+
