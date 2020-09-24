@@ -30,7 +30,7 @@ def read_pset(pset_name, file_path, slot_names=['curation', 'drug', 'molecularPr
         raise ValueError(
             f'No PSet directory named {pset_name} could be found in {file_path}')
 
-    # List al files for the select PSet, then split on $ to make a DataFrame
+    # List all files for the select PSet, then split on $ to make a DataFrame
     pset_files = pd.Series(os.listdir(pset_dir))
     pset_files_df = pset_files.str.split('$', expand=True)
 
@@ -86,3 +86,34 @@ def pset_df_to_nested_dict(df):
         else:
             # Return the data column if there no no key
             return df.iloc[:, -1].values[0]
+
+
+
+def make_tissue_df(dict):
+    """
+    Create a DataFrame of tissues from a nested dict representing a pset.
+
+    @param df: [`dict`] (pset)
+    @return: [`DataFrame`] (tissue table)
+    """
+    tissues = pd.Series(pd.unique(dict['cell']['tissueid']))
+    #currently a series, convert to df?
+
+def make_drug_df(dict):
+    """
+    Create a DataFrame of drugs from a nested dict representing a pset.
+
+    @param df: [`dict`] (pset)
+    @return: [`DataFrame`] (drug table)
+    """
+    drugs = dict['drug']['rownames'] # pretty sure this spits out a series
+
+def make_primary_dfs(dict): # temp fxn until I figure out what's going on
+    #datasets = ??? idk where to get this
+    #genes = ??? 
+    drug_targets = pd.Series(pd.unique(dict['drug']['TARGET']))
+    #dose_responses = 
+    #oncotrees = 
+    #cell_synonyms
+    #drug_synonyms
+    #tissue_synonyms
