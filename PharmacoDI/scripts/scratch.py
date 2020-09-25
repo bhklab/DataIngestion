@@ -99,8 +99,8 @@ def make_pset_dfs(pset_dict):
     tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
     tissues_df = pd.DataFrame({'id': tissues.index, 'name': tissues})
 
-    # make drugs df
-    drugs = pd.Series(pd.unique(pset_dict['drug']['rownames']))
+    # make drugs df -- should i be using drugid or DRUG_NAME?? -- looks like DRUG_NAME has better mapping
+    drugs = pd.Series(pd.unique(pset_dict['drug']['DRUG_NAME']))
     drugs_df = pd.DataFrame({'id': drugs.index, 'name': drugs})
 
     datasets = None #name of pset
@@ -129,7 +129,8 @@ def make_pset_dfs(pset_dict):
     targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
     targets_df = pd.DataFrame({'id': targets.index, 'name': targets})
 
-    # make the drug_targets df -- NEEDS TO BE MODIFIED TO JOIN WITH TARGET TABLE
+    # make the drug_targets df
+    # TODO - NEEDS TO BE MODIFIED TO JOIN WITH TARGET TABLE
     drug_targets_df = pset_dict['drug'][['DRUG_NAME', 'TARGET']]
     drug_targets_df = pd.merge(drugs_df, drug_targets_df, left_on='name', right_on='DRUG_NAME', how='right')
     # PROBLEM - some drug names don't map?? Ask Chris
@@ -140,11 +141,32 @@ def make_pset_dfs(pset_dict):
     drug_targets_df['id'] = drug_targets_df.index
 
     # make experiments df
-
+    experiments_df = pset_dict['sensitivity']['info'][['exp_id', 'cellid', 'drugid']]
+    experiments_df = pd.merge(experiments_df, cells_df[['name', 'tissue_id']], left_on='cellid', right_on='name', how='left')
+    # drop name column after merge
+    experiments_df.drop('name', axis='columns', inplace=True)
+    # rename columns
+    experiments_df.columns = ['exp_id', 'cell_id', 'drug_id', 'tissue_id']
+    # TODO - need to add dataset_id, and eventually get rid of exp_id
+    # add primary key
+    experiments_df['id'] = experiments_df.index
 
     # make the dose_responses df
     #dose_responses = #pset_dict['sensitivity']['raw.Dose']
     #dose_responses = #pset_dict['sensitivity']['raw.Viability']
+    pd.merge(experiments_df[['id', 'exp_id']], pset_dict['sensitivity']['raw.Dose'], left_on='exp_id', right_on='.exp_id', how='right')
+    doses_df = pset_dict['sensitivity']['raw.Dose']
+    responses_df = pset_dict['sensitivity']['raw.Viability']
 
+    for i in doses_df.index:
+        experiment = doses_df['.exp_id'][i]
+        #for i in range(1, doses_df.shape[1]):
 
+    #[f'dose.{i}' for i in range(1, doses_df.shape[1])]
 
+    pd.DataFrame({'exp_id': doses_df['.exp_id'][0],
+                  'dose': doses_df.iloc[0][1:]})
+
+                  #doses_df[[f'dose.{i}' for i in range(1, doses_df.shape[1])]][0]
+
+    #check joins with .notna() on cols
