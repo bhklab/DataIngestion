@@ -88,12 +88,14 @@ def pset_df_to_nested_dict(df):
             return df.iloc[:, -1].values[0]
 
 
-
-gene_sig_file_path = os.path.join(file_path, 'gene_signatures', 'pearson_perm_res')
+gene_sig_file_path = os.path.join(
+    file_path, 'gene_signatures', 'pearson_perm_res')
 
 # Read gene signature
+
+
 def read_gene_sig(pset_name, file_path):
-    # Find correct pset gene signature CSV file 
+    # Find correct pset gene signature CSV file
     pset_file = glob.glob(f'{os.path.join(file_path, pset_name)}.csv')[0]
     if pset_file is None:
         raise ValueError(
@@ -103,71 +105,115 @@ def read_gene_sig(pset_name, file_path):
     return pd.read_csv(pset_file)
 
 
-
 annotations_file_path = os.path.join('data', 'metadata', 'Annotations')
 
 # get metadata files
+
+
 def get_annotations(file_name, annotations_path):
     # Find correct metadata annotations CSV file
-    annotations_file = glob.glob({os.path.join(annotations_path, file_name)})[0]
+    annotations_file = glob.glob(
+        {os.path.join(annotations_path, file_name)})[0]
     if annotations_file is None:
         raise ValueError(
             f'No metadata file named {file_name} could be found in {annotations_path}')
-    
+
     # Read csv file and return df
     return pd.read_csv(annotations_file)
 
 
+# add useful comments
+
 # Make cell synonyms df
 def cell_synonyms(cells_df, file_name, file_path):
-    #
+    # Get metadata file
     file_name = 'cell_annotation_all.csv'
     cell_names_df = get_annotations(file_name, file_path)
 
-    #
+    # Find all columns relevant to cellid
     pattern = re.compile('cellid')
-    cell_columns = cell_names_df[[col for col in cell_names_df.columns if pattern.search(col)]]
+    cell_columns = cell_names_df[[
+        col for col in cell_names_df.columns if pattern.search(col)]]
 
-    # no
+    # Initialize DataFrame for cell synonyms
     cell_syn_df = pd.DataFrame(columns=['cell_id', 'cell_name'])
 
-    for row in cell_columns.iterrows():
-        (index, cell_row) = row
+    for (index, cell_row) in cell_columns.iterrows():
         cell_id = cells_df[cells_df['name'] == cell_names_df['X'][index]]['id']
         synonyms = pd.Series(pd.unique(cell_row)).dropna()
         cell_syn_df = cell_syn_df.append(
-            pd.DataFrame({ 'cell_id': cell_id, 'cell_name': synonyms}), 
+            pd.DataFrame({'cell_id': cell_id, 'cell_name': synonyms}),
             ignore_index=True)
+
+    # Add primary key
+    cell_syn_df['id'] = cell_syn_df.index
+
+    return cell_syn_df
 
     # using X
     # do I ever use curation?
     # do I need datasetid? it's in red..
-    #lots unmatched -- fix
+    # lots unmatched -- fix
+
+
+# very similar to cell_synonyms and drug_synonyms fxn.. should i condense, and how?
+def tissue_synonyms(tissues_df, file_name, file_path):
+    # Get metadata file
+    file_name = 'cell_annotation_all.csv'
+    tissues_metadata = get_annotations(file_name, file_path)
+
+    # Find all columns relevant to tissueid
+    pattern = re.compile('tissueid')
+    tissue_cols = tissues_metadata[[
+        col for col in tissues_metadata.columns if pattern.search(col)]]
+
+    # Initialize DataFrame for tissue synonyms
+    tissues_syn_df = pd.DataFrame(columns=['tissue_id', 'tissue_name'])
+
+    for (index, tissue_row) in tissue_cols.iterrows():
+        tissue_id = tissues_df[tissues_df['name'] ==
+                               tissue_cols['unique.tissueid'][index]]['id']
+        synonyms = pd.Series(pd.unique(tissue_row)).dropna()
+        tissues_syn_df.append(
+            pd.DataFrame({'tissue_id': tissue_id, 'tissue_name': synonyms}),
+            ignore_index=True)
+
+    # Add primary key
+    tissues_syn_df['id'] = tissues_syn_df.index
+
+    return tissues_syn_df
+
+    # add datasetid???
+
 
 # Make gene drugs df
 def gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     # Extract relevant columns
-    gene_drugs_df = gene_sig_df[['gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
-    #TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
-    #TODO - cannot find 'level' ('lower'? 'upper'?)
-    #TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
-    
+    gene_drugs_df = gene_sig_df[[
+        'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
+    # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
+    # TODO - cannot find 'level' ('lower'? 'upper'?)
+    # TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
+
     # Join with genes_df
-    gene_drugs_df = pd.merge(genes_df, gene_drugs_df, left_on='name', right_on='gene_id', how='right')
+    gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
+                             left_on='name', right_on='gene_id', how='right')
     # Drop gene name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'gene_id'], axis='columns', inplace=True)
     gene_drugs_df = gene_drugs_df.rename(columns={"id": "gene_id"})
 
     # Join with drugs_df
-    gene_drugs_df = pd.merge(drugs_df, gene_drugs_df, left_on='name', right_on='drug', how='right')
-        # TODO - this merges better on drugid than DRUG_NAME
+    gene_drugs_df = pd.merge(drugs_df, gene_drugs_df,
+                             left_on='name', right_on='drug', how='right')
+    # TODO - this merges better on drugid than DRUG_NAME
     # Drop drug name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'drug'], axis='columns', inplace=True)
     gene_drugs_df = gene_drugs_df.rename(columns={"id": "drug_id"})
 
     # Join with tissues_df
-    gene_drugs_df = pd.merge(gene_drugs_df, tissues_df, left_on='tissue', right_on='name', how='left')
-        # TODO - test this merge
+    gene_drugs_df = pd.merge(gene_drugs_df, tissues_df,
+                             left_on='tissue', right_on='name', how='left')
+    # TODO - test this merge
     # Drop tissue name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'tissue'], axis='columns', inplace=True)
     gene_drugs_df = gene_drugs_df.rename(columns={"id": "tissue_id"})
@@ -176,17 +222,19 @@ def gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
 
     return gene_drugs_df
 
+
 # TODO - Make dose resonses df
 def dose_responses_df(pset_dict):
-    #dose_responses = #pset_dict['sensitivity']['raw.Dose']
-    #dose_responses = #pset_dict['sensitivity']['raw.Viability']
-    pd.merge(experiments_df[['id', 'exp_id']], pset_dict['sensitivity']['raw.Dose'], left_on='exp_id', right_on='.exp_id', how='right')
+    # dose_responses = #pset_dict['sensitivity']['raw.Dose']
+    # dose_responses = #pset_dict['sensitivity']['raw.Viability']
+    pd.merge(experiments_df[['id', 'exp_id']], pset_dict['sensitivity']
+             ['raw.Dose'], left_on='exp_id', right_on='.exp_id', how='right')
     doses_df = pset_dict['sensitivity']['raw.Dose']
     responses_df = pset_dict['sensitivity']['raw.Viability']
 
     for i in doses_df.index:
         experiment = doses_df['.exp_id'][i]
-        #for i in range(1, doses_df.shape[1]):
+        # for i in range(1, doses_df.shape[1]):
 
     #[f'dose.{i}' for i in range(1, doses_df.shape[1])]
 
@@ -194,33 +242,26 @@ def dose_responses_df(pset_dict):
                   'dose': doses_df.iloc[0][1:],
                   'response': responses_df.iloc[0][1:]})
 
-                  #doses_df[[f'dose.{i}' for i in range(1, doses_df.shape[1])]][0]
+    #doses_df[[f'dose.{i}' for i in range(1, doses_df.shape[1])]][0]
 
-#TODO - datasets df
+# TODO - datasets df
 
-def make_pset_dfs(pset_dict, dataset_id):
+# Helper Functions
 
-    # make tissues df
-    tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
-    tissues_df = pd.DataFrame({'id': tissues.index, 'name': tissues})
-
-    # make drugs df -- should i be using drugid or DRUG_NAME?? -- looks like DRUG_NAME has better mapping
-    drugs = pd.Series(pd.unique(pset_dict['drug']['DRUG_NAME']))
-    drugs_df = pd.DataFrame({'id': drugs.index, 'name': drugs})
-
-    # makes genes df
-    genes = pd.Series(pd.unique(pset_dict['molecularProfiles']['rna']['rowData']['EnsemblGeneId'])) # check this
-    genes_df = pd.DataFrame({'id': genes.index, 'name': genes})
-
-    # make the cells df
-    cells_df = pd.merge(pset_dict['cell'], tissues_df, left_on='tissueid', right_on='name', how='left')[['cellid', 'name']]
+    # Make the cells df
+    cells_df = pd.merge(pset_dict['cell'], tissues_df, left_on='tissueid', right_on='name',
+                        how='left')[['cellid', 'name']]
     cells_df.columns = ['name', 'tissue_id']
     cells_df['id'] = cells_df.index
+def make_pset_dfs(pset_dict, dataset_id):
 
     # make the drug_annotations df
-    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
-    drug_annotations_df.columns = ['name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
-    drug_annotations_df = pd.merge(drugs_df, drug_annotations_df, on='name', how='right')
+    drug_annotations_df = pset_dict['drug'][[
+        'rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
+    drug_annotations_df.columns = [
+        'name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
+    drug_annotations_df = pd.merge(
+        drugs_df, drug_annotations_df, on='name', how='right')
     # drop name column once you've merged on it
     drug_annotations_df.drop('name', axis='columns', inplace=True)
 
@@ -231,7 +272,8 @@ def make_pset_dfs(pset_dict, dataset_id):
     # make the drug_targets df
     # TODO - NEEDS TO BE MODIFIED TO JOIN WITH TARGET TABLE
     drug_targets_df = pset_dict['drug'][['DRUG_NAME', 'TARGET']]
-    drug_targets_df = pd.merge(drugs_df, drug_targets_df, left_on='name', right_on='DRUG_NAME', how='right')
+    drug_targets_df = pd.merge(
+        drugs_df, drug_targets_df, left_on='name', right_on='DRUG_NAME', how='right')
     # PROBLEM - some drug names don't map?? Ask Chris
     # drop name columns after merge
     drug_targets_df.drop(['name', 'DRUG_NAME'], axis='columns', inplace=True)
@@ -240,8 +282,10 @@ def make_pset_dfs(pset_dict, dataset_id):
     drug_targets_df['id'] = drug_targets_df.index
 
     # make experiments df
-    experiments_df = pset_dict['sensitivity']['info'][['exp_id', 'cellid', 'drugid']]
-    experiments_df = pd.merge(experiments_df, cells_df[['name', 'tissue_id']], left_on='cellid', right_on='name', how='left')
+    experiments_df = pset_dict['sensitivity']['info'][[
+        'exp_id', 'cellid', 'drugid']]
+    experiments_df = pd.merge(experiments_df, cells_df[[
+                              'name', 'tissue_id']], left_on='cellid', right_on='name', how='left')
     # drop name column after merge
     experiments_df.drop('name', axis='columns', inplace=True)
     # rename columns
@@ -250,11 +294,76 @@ def make_pset_dfs(pset_dict, dataset_id):
     # add primary key
     experiments_df['id'] = experiments_df.index
 
+    # check joins with .notna() and .isna() on cols
 
-    #check joins with .notna() and .isna() on cols
+    dose_resp_df = dose_responses_df(pset_dict)
 
-    dose_responses_df = dose_responses_df(pset_dict)
-
-    #pset_name??? gene_sig_file_path?
+    # pset_name??? gene_sig_file_path?
     gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
     gene_drugs_df = gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df)
+
+
+def build_primary_tables(pset_dict):
+    """
+    Build the tissues, drug, cell, dataset DataFrames, to be used to construct the 
+    experiments DataFrame.
+
+    @param pset_dict: [`dict`]
+    @param dataset_id: [`string`]
+    @return: [`DataFrame`]
+    """
+    # Make tissues df; TODO - check that you should get it from 'cell' rather than 'curation
+    tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
+    tissues_df = pd.DataFrame({'id': tissues.index, 'name': tissues})
+
+    # Make drugs df; TODO - confirm whether to use drugid (?) or DRUG_NAME (targets)
+    drugs = pd.Series(pd.unique(pset_dict['drug']['DRUG_NAME']))
+    drugs_df = pd.DataFrame({'id': drugs.index, 'name': drugs})
+
+    # Makes genes df; TODO - check that you're getting the correct ID
+    genes = pd.Series(pd.unique(
+        pset_dict['molecularProfiles']['rna']['rowData']['EnsemblGeneId']))
+    genes_df = pd.DataFrame({'id': genes.index, 'name': genes})
+
+    return tissues_df, drugs_df, genes_df
+
+
+if __name__ == "__main__":
+    pset_names = ['GDSC_v1', 'GDSC_v2', 'gCSI',
+                  'FIMM', 'CTRPv2', 'CCLE', 'GRAY', 'UHNBreast']
+
+    # Convert pset files to nested dictionaries
+    pset_dicts = []
+    for pset in pset_names:
+        pset_df = read_pset(pset_name, file_path)
+        pset_dict = pset_df_to_nested_dict(pset_df)
+        pset_dicts.append(pset_dict)
+
+    # Initialize primary DataFrames
+    dataset_df = pd.DataFrame(columns=['id', 'name'])
+    tissue_df = pd.DataFrame(columns=['id', 'name'])
+    drug_df = pd.DataFrame(columns=['id', 'name'])
+    gene_df = pd.DataFrame(columns=['id', 'name'])
+
+    # Build out primary DataFrames
+    for i in range(len(pset_dicts)):
+        pset_dict = pset_dicts[i]
+        dataset_df.append({'name': pset_names[i]}, ignore_index=True)
+        tissues, drugs, genes = build_primary_tables(pset_dict)
+        tissue_df.append(tissues, ignore_index=True)
+        drug_df.append(drugs, ignore_index=True)
+        gene_df.append(genes, ignore_index=True)
+    
+    # Remove duplicate rows & reindex ID columns
+    for df in [tissue_df, drug_df, gene_df]:
+        df.drop_duplicates()
+        df['id'] = df.index
+    dataset_df['id'] = dataset_df.index
+
+    # Use primary dfs to build out cell and experiment DataFrames
+    
+
+
+
+
+        
