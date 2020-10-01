@@ -223,7 +223,15 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     return gene_drugs_df
 
 
-# TODO - Make dose resonses df
+def build_datasets_cells_df(pset_dict, cell_df, dataset_id):
+    datasets_cells_df = pd.merge(pset_dict['cell'][[
+                                 'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
+    datasets_cells_df.rename(columns={"id": "cell_id"})
+    datasets_cells_df['dataset_id'] = dataset_id
+    return datasets_cells_df
+
+
+# TODO - needs to be faster
 def build_dose_responses_df(pset_dict, experiment_df):
     # Get dose and response info from pset
     doses = pset_dict['sensitivity']['raw.Dose']
@@ -231,21 +239,23 @@ def build_dose_responses_df(pset_dict, experiment_df):
 
     dose_responses_df = pd.DataFrame(columns=['exp_id', 'dose', 'response'])
 
-    # exp id, dose, reponse
     for (index, dose_row) in doses.iterrows():
         exp = dose_row['.exp_id']
-        doses_df = pd.DataFrame({'exp_id': exp, 'dose_num': dose_row.index[1:], 'dose': dose_row[1:]})
+        doses_df = pd.DataFrame(
+            {'exp_id': exp, 'dose_num': dose_row.index[1:], 'dose': dose_row[1:]})
 
         response_row = responses[responses['.exp_id'] == exp].transpose()
         response_row = response_row.drop('.exp_id')
-        responses_df = pd.DataFrame({'dose_num': response_row.index, 'response': response_row[response_row.columns[0]]})
+        responses_df = pd.DataFrame(
+            {'dose_num': response_row.index, 'response': response_row[response_row.columns[0]]})
 
         dose_resp = pd.merge(doses_df, responses_df, on='dose_num')
         dose_resp.drop('dose_num', axis='columns', inplace=True)
-        
+
         dose_responses_df = dose_responses_df.append(dose_resp)
 
-    dose_responses_df = pd.merge(dose_responses_df, experiment_df, on='exp_id', how='left')[['id', 'dose', 'response']]
+    dose_responses_df = pd.merge(dose_responses_df, experiment_df, on='exp_id', how='left')[
+        ['id', 'dose', 'response']]
     dose_responses_df.rename(columns={"id": "experiment_id"})
 
     return dose_responses_df
@@ -303,7 +313,7 @@ def build_annotation_dfs(pset_dict, gene_df, drug_df):
     @return: [(`DataFrame`, `DataFrame`)]
     """
     # Make gene_annotations df
-    # TODO - build this? idk where to find symbol, gene_seq_start, gene_seq_end
+    # TODO - add gene_seq_start, gene_seq_end
     gene_annotations_df = pd.DataFrame(columns=['gene_id', 'symbol',
                                                 'gene_seq_start', 'gene_seq_end'])
     # pset_dict['molecularProfiles']['rna']['rowData'][['Symbol']]
@@ -444,10 +454,10 @@ if __name__ == "__main__":
     for i in range(len(pset_dicts)):
         dataset_id = dataset_df[dataset_df['name'] ==
                                 pset_names[i]]['id']  # TODO - check this
+        datasets_cells_df = datasets_cells_df.append(build_datasets_cells_df(pset_dicts[i], cell_df, dataset_id))
         experiments_df = experiments_df.append(
-            build_experiment_df(pset_dict, cell_df, drug_df, dataset_id))
+            build_experiment_df(pset_dicts[i], cell_df, drug_df, dataset_id))
         # TODO - mol_cells dfs
-        # TODO - datasets_cells
 
     # Add primary key
     for df in [datasets_cells_df, experiments_df, mol_cells_df]:
