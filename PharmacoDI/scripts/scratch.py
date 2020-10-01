@@ -187,7 +187,7 @@ def tissue_synonyms(tissues_df, file_name, file_path):
 
 
 # Make gene drugs df
-def gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
+def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     # Extract relevant columns
     gene_drugs_df = gene_sig_df[[
         'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
@@ -224,28 +224,34 @@ def gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
 
 
 # TODO - Make dose resonses df
-def dose_responses_df(pset_dict):
-    # dose_responses = #pset_dict['sensitivity']['raw.Dose']
-    # dose_responses = #pset_dict['sensitivity']['raw.Viability']
-    pd.merge(experiments_df[['id', 'exp_id']], pset_dict['sensitivity']
-             ['raw.Dose'], left_on='exp_id', right_on='.exp_id', how='right')
-    doses_df = pset_dict['sensitivity']['raw.Dose']
-    responses_df = pset_dict['sensitivity']['raw.Viability']
+def build_dose_responses_df(pset_dict, experiment_df):
+    # Get dose and response info from pset
+    doses = pset_dict['sensitivity']['raw.Dose']
+    responses = pset_dict['sensitivity']['raw.Viability']
 
-    for i in doses_df.index:
-        experiment = doses_df['.exp_id'][i]
-        # for i in range(1, doses_df.shape[1]):
+    dose_responses_df = pd.DataFrame(columns=['exp_id', 'dose', 'response'])
 
-    #[f'dose.{i}' for i in range(1, doses_df.shape[1])]
+    # exp id, dose, reponse
+    for (index, dose_row) in doses.iterrows():
+        exp = dose_row['.exp_id']
+        doses_df = pd.DataFrame({'exp_id': exp, 'dose_num': dose_row.index[1:], 'dose': dose_row[1:]})
 
-    pd.DataFrame({'exp_id': doses_df['.exp_id'][0],
-                  'dose': doses_df.iloc[0][1:],
-                  'response': responses_df.iloc[0][1:]})
+        response_row = responses[responses['.exp_id'] == exp].transpose()
+        response_row = response_row.drop('.exp_id')
+        responses_df = pd.DataFrame({'dose_num': response_row.index, 'response': response_row[response_row.columns[0]]})
 
-    #doses_df[[f'dose.{i}' for i in range(1, doses_df.shape[1])]][0]
+        dose_resp = pd.merge(doses_df, responses_df, on='dose_num')
+        dose_resp.drop('dose_num', axis='columns', inplace=True)
+        
+        dose_responses_df = dose_responses_df.append(dose_resp)
+
+    dose_responses_df = pd.merge(dose_responses_df, experiment_df, on='exp_id', how='left')[['id', 'dose', 'response']]
+    dose_responses_df.rename(columns={"id": "experiment_id"})
+
+    return dose_responses_df
 
 
-def drug_targets_df(pset_dict, drug_df, target_df):
+def build_drug_targets_df(pset_dict, drug_df, target_df):
     # TODO - this join works better with DRUG_NAME rather than drugid
     drug_targets_df = pset_dict['drug'][['drugid', 'TARGET']]
     drug_targets_df = pd.merge(drug_df, drug_targets_df, left_on='name',
@@ -266,7 +272,7 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     # Extract relelvant experiment columns
     experiments_df = pset_dict['sensitivity']['info'][[
         'exp_id', 'cellid', 'drugid']]
-    
+
     # Join with cell_df
     experiments_df = pd.merge(experiments_df, cell_df, left_on='cellid', right_on='name',
                               how='left')[['exp_id', 'id', 'drugid', 'tissue_id']]
@@ -274,7 +280,7 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     experiments_df.rename(columns={"id": "cell_id"})
 
     # Join with drug_df
-    experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name', 
+    experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name',
                               how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
     # Rename drug_id column (FK)
     experiments_df.rename(columns={"id": "drug_id"})
@@ -283,7 +289,7 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     experiments_df['dataset_id'] = dataset_id
 
     # TODO - get rid of exp_id; check if col order matters
-    
+
     return experiments_df
 
 
@@ -431,13 +437,15 @@ if __name__ == "__main__":
     datasets_cells_df = pd.DataFrame(columns=['id', 'dataset_id', 'cell_id'])
     experiments_df = pd.DataFrame(
         columns=['id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id'])
-    mol_cells_df = pd.DataFrame(columns=['id', 'cell_id', 'dataset_id', 'mDataType, num_prof'])
+    mol_cells_df = pd.DataFrame(
+        columns=['id', 'cell_id', 'dataset_id', 'mDataType, num_prof'])
 
     # Use cell df to build datasets_cells, experiments, mol_cells dfs
     for i in range(len(pset_dicts)):
         dataset_id = dataset_df[dataset_df['name'] ==
                                 pset_names[i]]['id']  # TODO - check this
-        experiments_df = experiments_df.append(build_experiment_df(pset_dict, cell_df, drug_df, dataset_id))
+        experiments_df = experiments_df.append(
+            build_experiment_df(pset_dict, cell_df, drug_df, dataset_id))
         # TODO - mol_cells dfs
         # TODO - datasets_cells
 
@@ -445,12 +453,21 @@ if __name__ == "__main__":
     for df in [datasets_cells_df, experiments_df, mol_cells_df]:
         df['id'] = df.index
 
-    #dose_response_df = pd.DataFrame(
+    # dose_response_df = pd.DataFrame(
     #    columns=['id', 'experiment_id', 'dose', 'response'])
-    #dose_response_df = dose_response_df.append(
+    # dose_response_df = dose_response_df.append(
     #        dose_responses, ignore_index=True)
 
-    # Use drug and target dfs to build out drug_targets df
+    # Initialize drug_targets DataFrame
+    drug_targets_df = pd.DataFrame(columns=['id', 'drug_id', 'target_id'])
+
+    # Use drug_df and target_df to build drug_targets df
+    for pset_dict in pset_dicts:
+        drug_targets_df = drug_targets_df.append(
+            build_drug_targets_df(pset_dict, drug_df, target_df))
+
+    # Add primary key
+    drug_targets_df['id'] = drug_targets_df.index
 
     # Build out gene_drugs df
 
