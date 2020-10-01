@@ -91,7 +91,8 @@ def pset_df_to_nested_dict(df):
 gene_sig_file_path = os.path.join(
     file_path, 'gene_signatures', 'pearson_perm_res')
 
-# Read gene signature
+
+# ---- Read gene signature
 
 
 def read_gene_sig(pset_name, file_path):
@@ -260,6 +261,45 @@ def build_dose_responses_df(pset_dict, experiment_df):
 
     return dose_responses_df
 
+# ---- Build dose response table
+# Chris' implementation
+def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables should always use singular names
+    # Get dose and response info from pset
+    dose = pset_dict['sensitivity']['raw.Dose']
+    response = pset_dict['sensitivity']['raw.Viability']
+
+    # rename columns so they can be coerced to int later
+    rename_dict = {f'dose.{n}': str(n) for n in np.arange(1, dose.shape[0])}
+    dose.rename(columns=rename_dict, inplace=True)
+    response.rename(columns=rename_dict, inplace=True)
+
+    # reshape the DataFrames using melt and pivot to go from 'wide' to 'long' or back, respectively
+    # these are much faster than using Python loops because all of the looping is done in the Pandas C++ code
+    dose = dose.melt(id_vars='.exp_id', value_name='dose', var_name='dose_id').dropna()
+    dose['dose_id'] = dose.dose_id.astype('int')
+    response = response.melt(id_vars='.exp_id', value_name='response', var_name='dose_id').dropna()
+    response['dose_id'] = response.dose_id.astype('int')
+
+    # set indexes for faster joins (~3x)
+    dose.set_index(['.exp_id', 'dose_id'], inplace=True)
+    response.set_index(['.exp_id', 'dose_id'], inplace=True)
+
+    # because I set indexes on both table I don't need to specify on
+    dose_response_df = pd.merge(dose, response, left_index=True, right_index=True).reset_index()
+
+    dose_response_df.rename(columns={'.exp_id': 'exp_id'}, inplace=True)
+    dose_response_df.set_index('exp_id', inplace=True)
+    experiment_df.set_index('exp_id', inplace=True)
+
+    dose_response_df = pd.merge(dose_response_df, experiment_df[['id']], 
+        right_index=True, left_index=True).reset_index()
+    dose_response_df.drop('exp_id', 1, inplace=True)
+    dose_response_df.rename(columns={'id': 'experiment_id'}, inplace=True)
+    dose_response_df.index = dose_response_df.index + 1
+
+    return dose_response_df
+
+
 
 def build_drug_targets_df(pset_dict, drug_df, target_df):
     # TODO - this join works better with DRUG_NAME rather than drugid
@@ -287,13 +327,14 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     experiments_df = pd.merge(experiments_df, cell_df, left_on='cellid', right_on='name',
                               how='left')[['exp_id', 'id', 'drugid', 'tissue_id']]
     # Rename cell_id column (FK)
-    experiments_df.rename(columns={"id": "cell_id"})
+    experiments_df.rename(columns={"id": "cell_id"}, inplace=True)
 
     # Join with drug_df
     experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name',
                               how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
     # Rename drug_id column (FK)
-    experiments_df.rename(columns={"id": "drug_id"})
+    ## FIXME: was missing inplace argument, otherwise df.rename returns a copy
+    experiments_df.rename(columns={"id": "drug_id"}, inplace=True)
 
     # Add dataset_id
     experiments_df['dataset_id'] = dataset_id
@@ -347,11 +388,11 @@ def build_cell_target_dfs(pset_dict, tissue_df, gene_df):
     cell_df.columns = ['name', 'tissue_id']
 
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
-    target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
-        ['TARGET', 'id']]
-    target_df.columns = ['name', 'gene_id']
+    # target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
+    #     ['TARGET', 'id']]
+    # target_df.columns = ['name', 'gene_id']
 
-    return cell_df, target_df
+    return cell_df #, target_df
 
 
 def build_primary_tables(pset_dict):
@@ -379,8 +420,10 @@ def build_primary_tables(pset_dict):
 
 
 if __name__ == "__main__":
-    pset_names = ['GDSC_v1', 'GDSC_v2', 'gCSI',
-                  'FIMM', 'CTRPv2', 'CCLE', 'GRAY', 'UHNBreast']
+    # pset_names = ['GDSC_v1', 'GDSC_v2', 'gCSI',
+    #               'FIMM', 'CTRPv2', 'CCLE', 'GRAY', 'UHNBreast']
+
+    pset_names = ['GDSC_v1']
 
     # TODO - turn this all into more functions, and condense into more concise code
 
@@ -441,7 +484,8 @@ if __name__ == "__main__":
 
     # Update primary keys
     for df in [cell_df, target_df, gene_annotations_df, drug_annotations_df]:
-        df['id'] = df.index
+        df['id'] = df.index + 1  # NOTE: database table indexing should start at 1; we use zero for special cases
+                                 # such as missing PKs (in which case you just match to PK 0)
 
     # Initialize datasets_cells, experiments, mol_cells DataFrames
     datasets_cells_df = pd.DataFrame(columns=['id', 'dataset_id', 'cell_id'])
