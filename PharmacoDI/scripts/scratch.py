@@ -248,36 +248,43 @@ def dose_responses_df(pset_dict):
 def drug_targets_df(pset_dict, drug_df, target_df):
     # TODO - this join works better with DRUG_NAME rather than drugid
     drug_targets_df = pset_dict['drug'][['drugid', 'TARGET']]
-    drug_targets_df = pd.merge(drug_df, drug_targets_df, left_on='name', 
-        right_on='drugid', how='right')[['id', 'TARGET']]
+    drug_targets_df = pd.merge(drug_df, drug_targets_df, left_on='name',
+                               right_on='drugid', how='right')[['id', 'TARGET']]
     # Rename drug id column (FK)
     drug_targets_df.rename(columns={"id": "drug_id"})
 
     # Join with target df
-    drug_targets_df = pd.merge(drug_targets_df, target_df, left_on='TARGET', 
-        right_on='name', how='left')[['drug_id', 'id']]
+    drug_targets_df = pd.merge(drug_targets_df, target_df, left_on='TARGET',
+                               right_on='name', how='left')[['drug_id', 'id']]
     # Rename target id column (FK)
     drug_targets_df.rename(columns={"id": "target_id"})
 
-    return drug_targets_df    
+    return drug_targets_df
 
 
-def build_experiment_dfs(pset_dict, cell_df, drug_df, tissue_df, dataset_id):
-    # Make experiments df
-    experiments_df = pset_dict['sensitivity']['info'][['exp_id', 'cellid', 'drugid']]
-    experiments_df = pd.merge(experiments_df, cell_df, left_on='cellid', right_on='name', 
-        how='left')[['exp_id', 'id']]
-    # Drop cell name columns after merge
-    experiments_df.drop(['name', 'cellid'], axis='columns', inplace=True)
-    # rename columns
-    experiments_df.columns = ['exp_id', 'drug_id', 'cell_id', 'tissue_id']
-    # TODO - need to add dataset_id, and eventually get rid of exp_id
-    # Add id and dataset_id columns
-    experiments_df = pd.DataFrame({'id': experiments_df.index,
-                                    'cell_id': experiments_df['cell_id'],
-                                    'drug_id': experiments_df['drug_id'],
-                                    'dataset_id': dataset_id,
-                                    'tissue_id': experiments_df['tissue_id']})
+def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
+    # Extract relelvant experiment columns
+    experiments_df = pset_dict['sensitivity']['info'][[
+        'exp_id', 'cellid', 'drugid']]
+    
+    # Join with cell_df
+    experiments_df = pd.merge(experiments_df, cell_df, left_on='cellid', right_on='name',
+                              how='left')[['exp_id', 'id', 'drugid', 'tissue_id']]
+    # Rename cell_id column (FK)
+    experiments_df.rename(columns={"id": "cell_id"})
+
+    # Join with drug_df
+    experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name', 
+                              how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
+    # Rename drug_id column (FK)
+    experiments_df.rename(columns={"id": "drug_id"})
+
+    # Add dataset_id
+    experiments_df['dataset_id'] = dataset_id
+
+    # TODO - get rid of exp_id; check if col order matters
+    
+    return experiments_df
 
 
 def build_annotation_dfs(pset_dict, gene_df, drug_df):
@@ -291,14 +298,15 @@ def build_annotation_dfs(pset_dict, gene_df, drug_df):
     """
     # Make gene_annotations df
     # TODO - build this? idk where to find symbol, gene_seq_start, gene_seq_end
-    gene_annotations_df = pd.DataFrame(columns=['gene_id', 'symbol', 
-        'gene_seq_start', 'gene_seq_end'])
+    gene_annotations_df = pd.DataFrame(columns=['gene_id', 'symbol',
+                                                'gene_seq_start', 'gene_seq_end'])
     # pset_dict['molecularProfiles']['rna']['rowData'][['Symbol']]
 
     # Make drug_annotations df
-    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 
-        'cid', 'FDA']]
-    drug_annotations_df.columns = ['name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
+    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey',
+                                             'cid', 'FDA']]
+    drug_annotations_df.columns = [
+        'name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
     # Create foreign key to drug_df
     drug_annotations_df = pd.merge(
         drug_df, drug_annotations_df, on='name', how='right')
@@ -319,11 +327,12 @@ def build_cell_target_dfs(pset_dict, tissue_df, gene_df):
     """
     # Make the cells df TODO
     cell_df = pd.merge(pset_dict['cell'], tissue_df, left_on='tissueid', right_on='name',
-                        how='left')[['cellid', 'id']]
+                       how='left')[['cellid', 'id']]
     cell_df.columns = ['name', 'tissue_id']
 
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
-    target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[['TARGET', 'id']]
+    target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
+        ['TARGET', 'id']]
     target_df.columns = ['name', 'gene_id']
 
     return cell_df, target_df
@@ -357,7 +366,7 @@ if __name__ == "__main__":
     pset_names = ['GDSC_v1', 'GDSC_v2', 'gCSI',
                   'FIMM', 'CTRPv2', 'CCLE', 'GRAY', 'UHNBreast']
 
-    #TODO - turn this all into more functions, and condense into more concise code
+    # TODO - turn this all into more functions, and condense into more concise code
 
     # Convert pset files to nested dictionaries
     pset_dicts = []
@@ -374,12 +383,13 @@ if __name__ == "__main__":
 
     # Build out primary DataFrames
     for i in range(len(pset_dicts)):
-        dataset_df = dataset_df.append({'name': pset_names[i]}, ignore_index=True)
+        dataset_df = dataset_df.append(
+            {'name': pset_names[i]}, ignore_index=True)
         tissues, drugs, genes = build_primary_tables(pset_dicts[i])
         tissue_df = tissue_df.append(tissues, ignore_index=True)
         drug_df = drug_df.append(drugs, ignore_index=True)
         gene_df = gene_df.append(genes, ignore_index=True)
-    
+
     # Remove duplicate rows & reindex ID columns
     for df in [tissue_df, drug_df, gene_df]:
         df.drop_duplicates()
@@ -389,20 +399,26 @@ if __name__ == "__main__":
     # Initialize cell, target & annotation DataFrames
     cell_df = pd.DataFrame(columns=['id', 'name', 'tissue_id'])
     target_df = pd.DataFrame(columns=['id', 'name', 'gene_id'])
-    gene_annotations_df = pd.DataFrame(columns=['gene_id', 'symbol', 'gene_seq_start', 'gene_seq_end'])
-    drug_annotations_df = pd.DataFrame(columns=['drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status'])
+    gene_annotations_df = pd.DataFrame(
+        columns=['gene_id', 'symbol', 'gene_seq_start', 'gene_seq_end'])
+    drug_annotations_df = pd.DataFrame(
+        columns=['drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status'])
 
     # Use tissue, drug, gene dfs to build out cell, target and annotation DataFrames
     for i in range(len(pset_dicts)):
-        dataset_id = dataset_df[dataset_df['name'] == pset_names[i]]['id'] #TODO - check this
+        dataset_id = dataset_df[dataset_df['name'] ==
+                                pset_names[i]]['id']  # TODO - check this
         cells, targets = build_cell_target_dfs(pset_dicts[i],
-            tissue_df, gene_df)
+                                               tissue_df, gene_df)
         cell_df = cell_df.append(cells, ignore_index=True)
         target_df = target_df.append(targets, ignore_index=True)
-        gene_annotations, drug_annotations = build_annotation_dfs(pset_dict, gene_df, drug_df)
-        gene_annotations_df = gene_annotations_df.append(gene_annotations, ignore_index=True)
-        drug_annotations_df = drug_annotations_df.append(drug_annotations, ignore_index=True)
-    
+        gene_annotations, drug_annotations = build_annotation_dfs(
+            pset_dict, gene_df, drug_df)
+        gene_annotations_df = gene_annotations_df.append(
+            gene_annotations, ignore_index=True)
+        drug_annotations_df = drug_annotations_df.append(
+            drug_annotations, ignore_index=True)
+
     # Remove duplicates from cell and target dfs
     cell_df.drop_duplicates()
     target_df.drop_duplicates()
@@ -413,22 +429,26 @@ if __name__ == "__main__":
 
     # Initialize datasets_cells, experiments, mol_cells DataFrames
     datasets_cells_df = pd.DataFrame(columns=['id', 'dataset_id', 'cell_id'])
-    experiments_df = pd.DataFrame(columns=['id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id'])
-    drug_df = pd.DataFrame(columns=['id', 'name'])
+    experiments_df = pd.DataFrame(
+        columns=['id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id'])
+    mol_cells_df = pd.DataFrame(columns=['id', 'cell_id', 'dataset_id', 'mDataType, num_prof'])
 
     # Use cell df to build datasets_cells, experiments, mol_cells dfs
+    for i in range(len(pset_dicts)):
+        dataset_id = dataset_df[dataset_df['name'] ==
+                                pset_names[i]]['id']  # TODO - check this
+        experiments_df = experiments_df.append(build_experiment_df(pset_dict, cell_df, drug_df, dataset_id))
+        # TODO - mol_cells dfs
+        # TODO - datasets_cells
 
-
-    
-    dose_response_df = pd.DataFrame(columns=['id', 'experiment_id', 'dose', 'response'])
-
-    # Use primary dfs to build out experiment DataFrames
-    for pset_dict in pset_dicts:
-        experiment_df = experiment_df.append(experiments, ignore_index=True)
-        dose_response_df = dose_response_df.append(dose_responses, ignore_index=True)
-
-    for df in [cell_df, experiment_df, dose_response_df]:
+    # Add primary key
+    for df in [datasets_cells_df, experiments_df, mol_cells_df]:
         df['id'] = df.index
+
+    #dose_response_df = pd.DataFrame(
+    #    columns=['id', 'experiment_id', 'dose', 'response'])
+    #dose_response_df = dose_response_df.append(
+    #        dose_responses, ignore_index=True)
 
     # Use drug and target dfs to build out drug_targets df
 
@@ -436,10 +456,7 @@ if __name__ == "__main__":
 
     # Build out synonyms DataFrames from metadata
 
-    
+
 # More comments -- confused about datasets_cells table? what is it for?
 # Where is clinical_trials info stored?
 # oncotrees, cellosaurus, dataset_statistics, profiles, mol_cells
-
-
-        
