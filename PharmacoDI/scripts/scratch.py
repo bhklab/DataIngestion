@@ -106,9 +106,9 @@ def read_gene_sig(pset_name, file_path):
     return pd.read_csv(pset_file)
 
 
-annotations_file_path = os.path.join('data', 'metadata', 'Annotations')
+# --- SYNONYMS TABLES --------------------------------------------------------------------------
 
-# get metadata files
+annotations_file_path = os.path.join('data', 'metadata', 'Annotations')
 
 
 def get_annotations(file_name, annotations_file_path):
@@ -124,7 +124,7 @@ def get_annotations(file_name, annotations_file_path):
 
 
 # TODO - 3 rows; 954 rows
-def cell_synonyms(cell_df, file_name, file_path):
+def cell_synonyms(cells_df, file_name, file_path):
     # Get metadata file
     file_name = 'cell_annotation_all.csv'
     cell_names_df = get_annotations(file_name, file_path)
@@ -134,26 +134,18 @@ def cell_synonyms(cell_df, file_name, file_path):
     cell_columns = cell_names_df[[
         col for col in cell_names_df.columns if pattern.search(col)]]
 
-    # Convert to long table, drop 'variable' col (leave only ID and alternate names), drop duplicates
-    cell_syn_df = pd.melt(cell_columns, 
-                          id_vars=['unique.cellid'])[['unique.cellid', 'value']].drop_duplicates()
+    # Get all unique synonyms and join with cells_df
+    cell_synonyms = melt_and_join(cell_columns, 'unique.cellid', cells_df)
 
-    # Drop all rows where value is NA
-    cell_syn_df = cell_syn_df[cell_syn_df['value'].notna()]
-
-    # Join with cell_df based on unique name
-    cell_syn_df = pd.merge(cell_syn_df, cell_df, left_on='unique.cellid', 
-                            right_on='name', how='left')[['id', 'value']]
-    
     # Rename columns
-    cell_syn_df.columns = ['cell_id', 'cell_name']
+    cell_synonyms.columns = ['cell_id', 'cell_name']
 
     # Add primary key and blank col for dataset_id (TODO)
-    cell_syn_df['id'] = cell_syn_df.index + 1
-    cell_syn_df['dataset_id'] = np.nan
+    cell_synonyms['id'] = cell_synonyms.index + 1
+    cell_synonyms['dataset_id'] = np.nan
 
     # Reorder columns to match ERD
-    return cell_syn_df[['id', 'cell_id', 'dataset_id', 'cell_name']]
+    return cell_synonyms[['id', 'cell_id', 'dataset_id', 'cell_name']]
 
 
 def tissue_synonyms(tissues_df, file_name, file_path):
@@ -166,26 +158,71 @@ def tissue_synonyms(tissues_df, file_name, file_path):
     tissue_cols = tissues_metadata[[
         col for col in tissues_metadata.columns if pattern.search(col)]]
 
-    # Convert to long table, drop 'variable' col (leave only ID and alternate names), drop duplicates
-    tissue_syn_df = pd.melt(tissue_cols, 
-                            id_vars=['unique.tissueid'])[['unique.tissueid', 'value']].drop_duplicates()
+    # Get all unique synonyms and join with tissues_df
+    tissue_synonyms = melt_and_join(tissue_cols, 'unique.tissueid', tissues_df)
 
-    # Drop all rows where value is NA
-    tissue_syn_df = tissue_syn_df[tissue_syn_df['value'].notna()]
-
-    # Join with tissues_df based on unique name
-    tissue_syn_df = pd.merge(tissue_syn_df, tissues_df, left_on='unique.tissueid', 
-                             right_on='name', how='left')[['id', 'value']]
-    
     # Rename columns
-    tissue_syn_df.columns = ['tissue_id', 'tissue_name']
+    tissue_synonyms.columns = ['tissue_id', 'tissue_name']
 
     # Add primary key and blank col for dataset_id (TODO)
-    tissue_syn_df['id'] = tissue_syn_df.index + 1
-    tissue_syn_df['dataset_id'] = np.nan
+    tissue_synonyms['id'] = tissue_synonyms.index + 1
+    tissue_synonyms['dataset_id'] = np.nan
 
     # Reorder columns to match ERD
-    return tissue_syn_df[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
+    return tissue_synonyms[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
+
+
+def drug_synonyms(drugs_df, file_name, file_path):
+    # Get metadata file
+    file_name = 'drugs_with_ids.csv'
+    drugs_metadata = get_annotations(file_name, file_path)
+
+    # Find all columns relevant to drugid
+    # Right now only FDA col is dropped, but may be more metadata in the future
+    pattern = re.compile('drugid')
+    drugs_metadata = drugs_metadata[[
+        col for col in drugs_metadata.columns if pattern.search(col)]]
+
+    # Get all unique synonyms and join with drugs_df
+    drug_synonyms = melt_and_join(drugs_metadata, 'unique.drugid', drugs_df)
+
+    # Rename columns
+    drug_synonyms.columns = ['tissue_id', 'tissue_name']
+
+    # Add primary key and blank col for dataset_id (TODO)
+    drug_synonyms['id'] = drug_synonyms.index + 1
+    drug_synonyms['dataset_id'] = np.nan
+
+    # Reorder columns to match ERD
+    return drug_synonyms[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
+
+
+# (RENAME) - Helper function for getting all synonyms related to a certain df
+def melt_and_join(meta_df, unique_id, join_df):
+    """
+    @param meta_df: [`DataFrame`] The dataframe containing all the synonyms (metadata)
+    @param unique_id: [`string`] The name of the column in the metadata containing the unique IDs
+    @param join_df: [`DataFrame`] THe dataframe containing the primary keys that will be used as
+        foreign keys in the new synonyms df
+
+    @return [`DataFrame`] The synonys dataframe, with a PK, FK based on join_df, and all unique synonyms
+    """
+    # Convert wide meta_df to long table
+    # Drop 'variable' col (leave only unique ID and synonyms), drop duplicates
+    synonyms = pd.melt(meta_df, id_vars=[unique_id])[
+        [unique_id, 'value']].drop_duplicates()
+
+    # Drop all rows where value is NA
+    synonyms = synonyms[synonyms['value'].notna()]
+
+    # Join with join_df based on unique_id
+    synonyms = pd.merge(synonyms, join_df, left_on=unique_id,
+                        right_on='name', how='left')[['id', 'value']]
+
+    return synonyms
+
+
+# --- END SYNONYMS TABLES --------------------------------------------------------------------------
 
 
 # Make gene drugs df
@@ -194,13 +231,13 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     gene_drugs_df = gene_sig_df[[
         'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
     # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
-        # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
-        # Chris: 'se' - leave NA/Null/None for now, it will be added as a column to the gene signatures the next time we run them.
-        # Chris: 'sens_stat' - I will add this to the function for extracting per PSet gene signatures - for now it is always 'AAC' (Area above dose-response curve)
+    # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
+    # Chris: 'se' - leave NA/Null/None for now, it will be added as a column to the gene signatures the next time we run them.
+    # Chris: 'sens_stat' - I will add this to the function for extracting per PSet gene signatures - for now it is always 'AAC' (Area above dose-response curve)
     # TODO - level has been removed from the ERD :)
     # TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
-        # Chris: Have renamed it to tested_in_human_trials, it will indicate a 1 if it has ever been tested in a human clinical trial (even if it failed)
-        # Chris: Source for this data will be clinicaltrails.gov
+    # Chris: Have renamed it to tested_in_human_trials, it will indicate a 1 if it has ever been tested in a human clinical trial (even if it failed)
+    # Chris: Source for this data will be clinicaltrails.gov
 
     # Join with genes_df
     gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
@@ -269,10 +306,13 @@ def build_dose_responses_df(pset_dict, experiment_df):
 
 # ---- Build dose response table
 # Chris' implementation
-## TODO:: Do Python functions pass my reference or copy by default?
-##   If pass by reference may need to make a copy before using inplace=TRUE argument
-##   to prevent modifying the original experiments table
-def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables should always use singular names
+# TODO:: Do Python functions pass my reference or copy by default?
+# If pass by reference may need to make a copy before using inplace=TRUE argument
+# to prevent modifying the original experiments table
+
+
+# NOTE: database tables should always use singular names
+def build_dose_response_df(pset_dict, experiment_df):
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
     response = pset_dict['sensitivity']['raw.Viability']
@@ -284,9 +324,11 @@ def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables s
 
     # reshape the DataFrames using melt and pivot to go from 'wide' to 'long' or back, respectively
     # these are much faster than using Python loops because all of the looping is done in the Pandas  C++ code
-    dose = dose.melt(id_vars='.exp_id', value_name='dose', var_name='dose_id').dropna()
+    dose = dose.melt(id_vars='.exp_id', value_name='dose',
+                     var_name='dose_id').dropna()
     dose['dose_id'] = dose.dose_id.astype('int')
-    response = response.melt(id_vars='.exp_id', value_name='response', var_name='dose_id').dropna()
+    response = response.melt(
+        id_vars='.exp_id', value_name='response', var_name='dose_id').dropna()
     response['dose_id'] = response.dose_id.astype('int')
 
     # set indexes for faster joins (~3x)
@@ -294,20 +336,20 @@ def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables s
     response.set_index(['.exp_id', 'dose_id'], inplace=True)
 
     # because I set indexes on both table I don't need to specify on
-    dose_response_df = pd.merge(dose, response, left_index=True, right_index=True).reset_index()
+    dose_response_df = pd.merge(
+        dose, response, left_index=True, right_index=True).reset_index()
 
     dose_response_df.rename(columns={'.exp_id': 'exp_id'}, inplace=True)
     dose_response_df.set_index('exp_id', inplace=True)
     experiment_df.set_index('exp_id', inplace=True)
 
-    dose_response_df = pd.merge(dose_response_df, experiment_df[['id']], 
-        right_index=True, left_index=True).reset_index()
+    dose_response_df = pd.merge(dose_response_df, experiment_df[['id']],
+                                right_index=True, left_index=True).reset_index()
     dose_response_df.drop('exp_id', 1, inplace=True)
     dose_response_df.rename(columns={'id': 'experiment_id'}, inplace=True)
     dose_response_df.index = dose_response_df.index + 1
 
     return dose_response_df
-
 
 
 def build_drug_targets_df(pset_dict, drug_df, target_df):
@@ -342,7 +384,7 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name',
                               how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
     # Rename drug_id column (FK)
-    ## FIXME: was missing inplace argument, otherwise df.rename returns a copy
+    # FIXME: was missing inplace argument, otherwise df.rename returns a copy
     experiments_df.rename(columns={"id": "drug_id"}, inplace=True)
 
     # Add dataset_id
@@ -401,7 +443,7 @@ def build_cell_target_dfs(pset_dict, tissue_df, gene_df):
     #     ['TARGET', 'id']]
     # target_df.columns = ['name', 'gene_id']
 
-    return cell_df #, target_df
+    return cell_df  # , target_df
 
 
 def build_primary_tables(pset_dict):
@@ -493,8 +535,9 @@ if __name__ == "__main__":
 
     # Update primary keys
     for df in [cell_df, target_df, gene_annotations_df, drug_annotations_df]:
-        df['id'] = df.index + 1  # NOTE: database table indexing should start at 1; we use zero for special cases
-                                 # such as missing PKs (in which case you just match to PK 0)
+        # NOTE: database table indexing should start at 1; we use zero for special cases
+        df['id'] = df.index + 1
+        # such as missing PKs (in which case you just match to PK 0)
 
     # Initialize datasets_cells, experiments, mol_cells DataFrames
     datasets_cells_df = pd.DataFrame(columns=['id', 'dataset_id', 'cell_id'])
@@ -507,7 +550,8 @@ if __name__ == "__main__":
     for i in range(len(pset_dicts)):
         dataset_id = dataset_df[dataset_df['name'] ==
                                 pset_names[i]]['id']  # TODO - check this
-        datasets_cells_df = datasets_cells_df.append(build_datasets_cells_df(pset_dicts[i], cell_df, dataset_id))
+        datasets_cells_df = datasets_cells_df.append(
+            build_datasets_cells_df(pset_dicts[i], cell_df, dataset_id))
         experiments_df = experiments_df.append(
             build_experiment_df(pset_dicts[i], cell_df, drug_df, dataset_id))
         # TODO - mol_cells dfs
@@ -540,14 +584,14 @@ if __name__ == "__main__":
 # More comments -- confused about datasets_cells table? what is it for?
    # Chris: Show which cell lines are in which dataset (PSet). Not all PSets have the same cell lines.
 # Where is clinical_trials info stored?
-   # Chris: 
-        # There is a ruby script to fetch this information
-        # Code is at: https://github.com/bhklab/PharmacoDB-web/blob/master/lib/tasks/update_clinical_trials.rake
-        # I know nothing about Ruby so I hope there is documentation :)
+   # Chris:
+    # There is a ruby script to fetch this information
+    # Code is at: https://github.com/bhklab/PharmacoDB-web/blob/master/lib/tasks/update_clinical_trials.rake
+    # I know nothing about Ruby so I hope there is documentation :)
 # oncotrees, cellosaurus, dataset_statistics, profiles, mol_cells
-    # Chris: 
-        # oncotress - we don't have the data yet
-        # cellosaurus - see cellosaurus_names.xlsx (excel is evil, convert it to a .csv please)
-        # dataset_statistics -
-        # profiles - will be found in sensitivityProfiles, may not have all statistics yet
-        # mol_cells - join table between dataset and cell, will hold the molecular data types available for that cell line
+    # Chris:
+    # oncotress - we don't have the data yet
+    # cellosaurus - see cellosaurus_names.xlsx (excel is evil, convert it to a .csv please)
+    # dataset_statistics -
+    # profiles - will be found in sensitivityProfiles, may not have all statistics yet
+    # mol_cells - join table between dataset and cell, will hold the molecular data types available for that cell line
