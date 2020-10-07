@@ -88,24 +88,6 @@ def pset_df_to_nested_dict(df):
             return df.iloc[:, -1].values[0]
 
 
-gene_sig_file_path = os.path.join(
-    file_path, 'gene_signatures', 'pearson_perm_res')
-
-
-# ---- Read gene signature
-
-
-def read_gene_sig(pset_name, file_path):
-    # Find correct pset gene signature CSV file
-    pset_file = glob.glob(f'{os.path.join(file_path, pset_name)}.csv')[0]
-    if pset_file is None:
-        raise ValueError(
-            f'No PSet gene signatures file named {pset_name} could be found in {file_path}')
-
-    # Read csv file and return df
-    return pd.read_csv(pset_file)
-
-
 # --- SYNONYMS TABLES --------------------------------------------------------------------------
 
 annotations_file_path = os.path.join('data', 'metadata', 'Annotations')
@@ -117,7 +99,7 @@ def get_annotations(file_name, annotations_file_path):
         os.path.join(annotations_file_path, file_name))[0]
     if annotations_file is None:
         raise ValueError(
-            f'No metadata file named {file_name} could be found in {annotations_path}')
+            f'No metadata file named {file_name} could be found in {annotations_file_path}')
 
     # Read csv file and return df
     return pd.read_csv(annotations_file)
@@ -224,20 +206,42 @@ def melt_and_join(meta_df, unique_id, join_df):
 
 # --- END SYNONYMS TABLES --------------------------------------------------------------------------
 
+# --- GENE_DRUGS TABLE --------------------------------------------------------------------------
 
-# Make gene drugs df
-def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
+gene_sig_file_path = os.path.join(
+    file_path, 'gene_signatures', 'pearson_perm_res')
+
+
+def read_gene_sig(pset_name, file_path):
+    # Find correct pset gene signature CSV file
+    pset_file = glob.glob(f'{os.path.join(file_path, pset_name)}.csv')[0]
+    if pset_file is None:
+        raise ValueError(
+            f'No PSet gene signatures file named {pset_name} could be found in {file_path}')
+
+    # Read csv file and return df
+    return pd.read_csv(pset_file)
+
+
+def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id):
     # Extract relevant columns
     gene_drugs_df = gene_sig_df[[
         'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
     # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
     # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
+
     # Chris: 'se' - leave NA/Null/None for now, it will be added as a column to the gene signatures the next time we run them.
+    gene_drugs_df['se'] = np.nan
     # Chris: 'sens_stat' - I will add this to the function for extracting per PSet gene signatures - for now it is always 'AAC' (Area above dose-response curve)
-    # TODO - level has been removed from the ERD :)
+    gene_drugs_df['sens_stat'] = 'AAC'
     # TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
     # Chris: Have renamed it to tested_in_human_trials, it will indicate a 1 if it has ever been tested in a human clinical trial (even if it failed)
     # Chris: Source for this data will be clinicaltrails.gov
+    # TODO - check out API, leave NA for now
+    gene_drugs_df['tested_in_human_trials'] = np.nan
+    gene_drugs_df['in_clinical_trials'] = np.nan
+
+    # Add all foreign keys (gene_id, drug_id, tissue_id, dataset_id)
 
     # Join with genes_df
     gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
@@ -257,14 +261,20 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     # Join with tissues_df
     gene_drugs_df = pd.merge(gene_drugs_df, tissues_df,
                              left_on='tissue', right_on='name', how='left')
-    # TODO - test this merge
     # Drop tissue name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'tissue'], axis='columns', inplace=True)
     gene_drugs_df = gene_drugs_df.rename(columns={"id": "tissue_id"})
 
-    # dataset id..
+    # Add dataset id
+    gene_drugs_df['dataset_id'] = dataset_id
 
-    return gene_drugs_df
+    # Reorder columns (omit red cols and PK)
+    return gene_drugs_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'pvalue', 
+                            'df', 'fdr', 'dataset_id', 'sens_stat', 'tissue_id', 
+                            'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
+
+
+# --- END GENE_DRUGS TABLE --------------------------------------------------------------------------
 
 
 def build_datasets_cells_df(pset_dict, cell_df, dataset_id):
@@ -469,6 +479,8 @@ def build_primary_tables(pset_dict):
 
     return tissue_df, drug_df, gene_df
 
+
+# TODO - refactor on Thursday (10/8)
 
 if __name__ == "__main__":
     # pset_names = ['GDSC_v1', 'GDSC_v2', 'gCSI',
