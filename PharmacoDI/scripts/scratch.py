@@ -277,6 +277,17 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
 # --- END GENE_DRUGS TABLE --------------------------------------------------------------------------
 
 
+
+# --- Build cellosaurus table
+
+cellosaurus_file = 'cellosaurus_names.xlsx'
+
+def build_cellosaurus():
+    # TODO - get cellosaurus.txt file and process it
+    return None
+
+
+# --- Build dataset cells table
 def build_datasets_cells_df(pset_dict, cell_df, dataset_id):
     datasets_cells_df = pd.merge(pset_dict['cell'][[
                                  'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
@@ -404,6 +415,7 @@ def build_annotation_dfs(pset_dict, gene_df, drug_df):
     return gene_annotations_df, drug_annotations_df
 
 
+# TODO - asked Chris about this already
 def build_cell_target_dfs(pset_dict, tissue_df, gene_df):
     """
     ~ description ~ (build out cell and target dataframes)
@@ -414,6 +426,7 @@ def build_cell_target_dfs(pset_dict, tissue_df, gene_df):
     @return: [(`DataFrame`, `DataFrame`)]
     """
     # Make the cells df TODO
+    # cellid vs PharmacodDB.id
     cell_df = pd.merge(pset_dict['cell'], tissue_df, left_on='tissueid', right_on='name',
                        how='left')[['cellid', 'id']]
     cell_df.columns = ['name', 'tissue_id']
