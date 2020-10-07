@@ -248,7 +248,7 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
                              left_on='name', right_on='gene_id', how='right')
     # Drop gene name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'gene_id'], axis='columns', inplace=True)
-    gene_drugs_df = gene_drugs_df.rename(columns={"id": "gene_id"})
+    gene_drugs_df.rename(columns={"id": "gene_id"}, inplace=True)
 
     # Join with drugs_df
     gene_drugs_df = pd.merge(drugs_df, gene_drugs_df,
@@ -256,14 +256,14 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
     # TODO - this merges better on drugid than DRUG_NAME
     # Drop drug name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'drug'], axis='columns', inplace=True)
-    gene_drugs_df = gene_drugs_df.rename(columns={"id": "drug_id"})
+    gene_drugs_df.rename(columns={"id": "drug_id"}, inplace=True)
 
     # Join with tissues_df
     gene_drugs_df = pd.merge(gene_drugs_df, tissues_df,
                              left_on='tissue', right_on='name', how='left')
     # Drop tissue name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'tissue'], axis='columns', inplace=True)
-    gene_drugs_df = gene_drugs_df.rename(columns={"id": "tissue_id"})
+    gene_drugs_df.rename(columns={"id": "tissue_id"}, inplace=True)
 
     # Add dataset id
     gene_drugs_df['dataset_id'] = dataset_id
@@ -280,39 +280,10 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
 def build_datasets_cells_df(pset_dict, cell_df, dataset_id):
     datasets_cells_df = pd.merge(pset_dict['cell'][[
                                  'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
-    datasets_cells_df.rename(columns={"id": "cell_id"})
+    datasets_cells_df.rename(columns={"id": "cell_id"}, inplace=True)
     datasets_cells_df['dataset_id'] = dataset_id
     return datasets_cells_df
 
-
-# TODO - needs to be faster
-def build_dose_responses_df(pset_dict, experiment_df):
-    # Get dose and response info from pset
-    doses = pset_dict['sensitivity']['raw.Dose']
-    responses = pset_dict['sensitivity']['raw.Viability']
-
-    dose_responses_df = pd.DataFrame(columns=['exp_id', 'dose', 'response'])
-
-    for (index, dose_row) in doses.iterrows():
-        exp = dose_row['.exp_id']
-        doses_df = pd.DataFrame(
-            {'exp_id': exp, 'dose_num': dose_row.index[1:], 'dose': dose_row[1:]})
-
-        response_row = responses[responses['.exp_id'] == exp].transpose()
-        response_row = response_row.drop('.exp_id')
-        responses_df = pd.DataFrame(
-            {'dose_num': response_row.index, 'response': response_row[response_row.columns[0]]})
-
-        dose_resp = pd.merge(doses_df, responses_df, on='dose_num')
-        dose_resp.drop('dose_num', axis='columns', inplace=True)
-
-        dose_responses_df = dose_responses_df.append(dose_resp)
-
-    dose_responses_df = pd.merge(dose_responses_df, experiment_df, on='exp_id', how='left')[
-        ['id', 'dose', 'response']]
-    dose_responses_df.rename(columns={"id": "experiment_id"})
-
-    return dose_responses_df
 
 # ---- Build dose response table
 # Chris' implementation
@@ -368,13 +339,13 @@ def build_drug_targets_df(pset_dict, drug_df, target_df):
     drug_targets_df = pd.merge(drug_df, drug_targets_df, left_on='name',
                                right_on='drugid', how='right')[['id', 'TARGET']]
     # Rename drug id column (FK)
-    drug_targets_df.rename(columns={"id": "drug_id"})
+    drug_targets_df.rename(columns={"id": "drug_id"}, inplace=True)
 
     # Join with target df
     drug_targets_df = pd.merge(drug_targets_df, target_df, left_on='TARGET',
                                right_on='name', how='left')[['drug_id', 'id']]
     # Rename target id column (FK)
-    drug_targets_df.rename(columns={"id": "target_id"})
+    drug_targets_df.rename(columns={"id": "target_id"}, inplace=True)
 
     return drug_targets_df
 
@@ -394,7 +365,6 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name',
                               how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
     # Rename drug_id column (FK)
-    # FIXME: was missing inplace argument, otherwise df.rename returns a copy
     experiments_df.rename(columns={"id": "drug_id"}, inplace=True)
 
     # Add dataset_id
