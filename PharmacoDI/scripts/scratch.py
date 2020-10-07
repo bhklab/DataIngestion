@@ -111,10 +111,10 @@ annotations_file_path = os.path.join('data', 'metadata', 'Annotations')
 # get metadata files
 
 
-def get_annotations(file_name, annotations_path):
+def get_annotations(file_name, annotations_file_path):
     # Find correct metadata annotations CSV file
     annotations_file = glob.glob(
-        {os.path.join(annotations_path, file_name)})[0]
+        os.path.join(annotations_file_path, file_name))[0]
     if annotations_file is None:
         raise ValueError(
             f'No metadata file named {file_name} could be found in {annotations_path}')
@@ -123,10 +123,8 @@ def get_annotations(file_name, annotations_path):
     return pd.read_csv(annotations_file)
 
 
-# add useful comments
-
-# Make cell synonyms df
-def cell_synonyms(cells_df, file_name, file_path):
+# TODO - 3 rows; 954 rows
+def cell_synonyms(cell_df, file_name, file_path):
     # Get metadata file
     file_name = 'cell_annotation_all.csv'
     cell_names_df = get_annotations(file_name, file_path)
@@ -136,28 +134,28 @@ def cell_synonyms(cells_df, file_name, file_path):
     cell_columns = cell_names_df[[
         col for col in cell_names_df.columns if pattern.search(col)]]
 
-    # Initialize DataFrame for cell synonyms
-    cell_syn_df = pd.DataFrame(columns=['cell_id', 'cell_name'])
+    # Convert to long table, drop 'variable' col (leave only ID and alternate names), drop duplicates
+    cell_syn_df = pd.melt(cell_columns, 
+                          id_vars=['unique.cellid'])[['unique.cellid', 'value']].drop_duplicates()
 
-    for (index, cell_row) in cell_columns.iterrows():
-        cell_id = cells_df[cells_df['name'] == cell_names_df['X'][index]]['id']
-        synonyms = pd.Series(pd.unique(cell_row)).dropna()
-        cell_syn_df = cell_syn_df.append(
-            pd.DataFrame({'cell_id': cell_id, 'cell_name': synonyms}),
-            ignore_index=True)
+    # Drop all rows where value is NA
+    cell_syn_df = cell_syn_df[cell_syn_df['value'].notna()]
 
-    # Add primary key
-    cell_syn_df['id'] = cell_syn_df.index
+    # Join with cell_df based on unique name
+    cell_syn_df = pd.merge(cell_syn_df, cell_df, left_on='unique.cellid', 
+                            right_on='name', how='left')[['id', 'value']]
+    
+    # Rename columns
+    cell_syn_df.columns = ['cell_id', 'cell_name']
 
-    return cell_syn_df
+    # Add primary key and blank col for dataset_id (TODO)
+    cell_syn_df['id'] = cell_syn_df.index + 1
+    cell_syn_df['dataset_id'] = np.nan
 
-    # using X
-    # do I ever use curation?
-    # do I need datasetid? it's in red..
-    # lots unmatched -- fix
+    # Reorder columns to match ERD
+    return cell_syn_df[['id', 'cell_id', 'dataset_id', 'cell_name']]
 
 
-# very similar to cell_synonyms and drug_synonyms fxn.. should i condense, and how?
 def tissue_synonyms(tissues_df, file_name, file_path):
     # Get metadata file
     file_name = 'cell_annotation_all.csv'
@@ -168,23 +166,26 @@ def tissue_synonyms(tissues_df, file_name, file_path):
     tissue_cols = tissues_metadata[[
         col for col in tissues_metadata.columns if pattern.search(col)]]
 
-    # Initialize DataFrame for tissue synonyms
-    tissues_syn_df = pd.DataFrame(columns=['tissue_id', 'tissue_name'])
+    # Convert to long table, drop 'variable' col (leave only ID and alternate names), drop duplicates
+    tissue_syn_df = pd.melt(tissue_cols, 
+                            id_vars=['unique.tissueid'])[['unique.tissueid', 'value']].drop_duplicates()
 
-    for (index, tissue_row) in tissue_cols.iterrows():
-        tissue_id = tissues_df[tissues_df['name'] ==
-                               tissue_cols['unique.tissueid'][index]]['id']
-        synonyms = pd.Series(pd.unique(tissue_row)).dropna()
-        tissues_syn_df.append(
-            pd.DataFrame({'tissue_id': tissue_id, 'tissue_name': synonyms}),
-            ignore_index=True)
+    # Drop all rows where value is NA
+    tissue_syn_df = tissue_syn_df[tissue_syn_df['value'].notna()]
 
-    # Add primary key
-    tissues_syn_df['id'] = tissues_syn_df.index
+    # Join with tissues_df based on unique name
+    tissue_syn_df = pd.merge(tissue_syn_df, tissues_df, left_on='unique.tissueid', 
+                             right_on='name', how='left')[['id', 'value']]
+    
+    # Rename columns
+    tissue_syn_df.columns = ['tissue_id', 'tissue_name']
 
-    return tissues_syn_df
+    # Add primary key and blank col for dataset_id (TODO)
+    tissue_syn_df['id'] = tissue_syn_df.index + 1
+    tissue_syn_df['dataset_id'] = np.nan
 
-    # add datasetid???
+    # Reorder columns to match ERD
+    return tissue_syn_df[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
 
 
 # Make gene drugs df
@@ -193,8 +194,13 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df):
     gene_drugs_df = gene_sig_df[[
         'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
     # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
-    # TODO - cannot find 'level' ('lower'? 'upper'?)
+        # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
+        # Chris: 'se' - leave NA/Null/None for now, it will be added as a column to the gene signatures the next time we run them.
+        # Chris: 'sens_stat' - I will add this to the function for extracting per PSet gene signatures - for now it is always 'AAC' (Area above dose-response curve)
+    # TODO - level has been removed from the ERD :)
     # TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
+        # Chris: Have renamed it to tested_in_human_trials, it will indicate a 1 if it has ever been tested in a human clinical trial (even if it failed)
+        # Chris: Source for this data will be clinicaltrails.gov
 
     # Join with genes_df
     gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
@@ -263,6 +269,9 @@ def build_dose_responses_df(pset_dict, experiment_df):
 
 # ---- Build dose response table
 # Chris' implementation
+## TODO:: Do Python functions pass my reference or copy by default?
+##   If pass by reference may need to make a copy before using inplace=TRUE argument
+##   to prevent modifying the original experiments table
 def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables should always use singular names
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
@@ -274,7 +283,7 @@ def build_dose_response_df(pset_dict, experiment_df):  # NOTE: database tables s
     response.rename(columns=rename_dict, inplace=True)
 
     # reshape the DataFrames using melt and pivot to go from 'wide' to 'long' or back, respectively
-    # these are much faster than using Python loops because all of the looping is done in the Pandas C++ code
+    # these are much faster than using Python loops because all of the looping is done in the Pandas  C++ code
     dose = dose.melt(id_vars='.exp_id', value_name='dose', var_name='dose_id').dropna()
     dose['dose_id'] = dose.dose_id.astype('int')
     response = response.melt(id_vars='.exp_id', value_name='response', var_name='dose_id').dropna()
@@ -529,5 +538,16 @@ if __name__ == "__main__":
 
 
 # More comments -- confused about datasets_cells table? what is it for?
+   # Chris: Show which cell lines are in which dataset (PSet). Not all PSets have the same cell lines.
 # Where is clinical_trials info stored?
+   # Chris: 
+        # There is a ruby script to fetch this information
+        # Code is at: https://github.com/bhklab/PharmacoDB-web/blob/master/lib/tasks/update_clinical_trials.rake
+        # I know nothing about Ruby so I hope there is documentation :)
 # oncotrees, cellosaurus, dataset_statistics, profiles, mol_cells
+    # Chris: 
+        # oncotress - we don't have the data yet
+        # cellosaurus - see cellosaurus_names.xlsx (excel is evil, convert it to a .csv please)
+        # dataset_statistics -
+        # profiles - will be found in sensitivityProfiles, may not have all statistics yet
+        # mol_cells - join table between dataset and cell, will hold the molecular data types available for that cell line
