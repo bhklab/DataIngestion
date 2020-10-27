@@ -33,9 +33,9 @@ library(ToxicoGx)
 #}
 
 ## Load functions
-source('R/1_tSetToDatabaseCSV.R')
+source('../../../../OneDrive/Development/DataIngestion/rToxicoDI/R/1_tSetToDatabaseCSV.R')
 
-tSetPaths <- list.files('tSets', pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds', full.names=TRUE)
+tSetPaths <- list.files('../../../../OneDrive/Development/DataIngestion/rToxicoDI/tSets', pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds', full.names=TRUE)
 
 ## Generate database tables from individual tSets
 #for (path in tSetPaths) {
@@ -45,7 +45,7 @@ tSetPaths <- list.files('tSets', pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds',
 
 # Append Together the tSet Tables -----------------------------------------
 
-source('R/2_appendTSetToToxicoDB.R')
+source('../../../../OneDrive/Development/DataIngestion/rToxicoDI/R/2_appendTSetToToxicoDB.R')
 
 ##TODO:: Generalize this to work with N tSets of unkown name
 ##FIXME:: Find which tSet has '
@@ -64,7 +64,7 @@ for (i in seq_len(length(tableLabs) - 1)) {
 
 # Validate the Mapping in the ToxicoDB Tables -----------------------------
 
-source('./3_validateTablesToxicoDB.R')
+source('3_validateTablesToxicoDB.R')
 
 ## Check mappings in the final tables
 validateTablesToxicoDB("_latest")

@@ -25,7 +25,7 @@ tSetToDBtables <- function(tSet, lab_out) {
                       )
   compounds1 <- copy(compounds)
   
-  annot <- fread("metadata/Drug_annotations_V2.1.csv")
+  annot <- fread("../../../../OneDrive/Development/DataIngestion/rToxicoDI/metadata/Drug_annotations_V2.1.csv")
   colnames(annot)[2] <- "name"
 
   annot <- annot[compounds, on = "name"]
@@ -127,7 +127,7 @@ tSetToDBtables <- function(tSet, lab_out) {
   ## GENERATE PATHWAYS TABLE FROM FILE
 
   # Read in file lines a stings
-  lines <- readLines("metadata/pathways_raw.txt")
+  lines <- readLines("../../../../OneDrive/Development/DataIngestion/rToxicoDI/metadata/pathways_raw.txt")
 
   # Split the lines in
   line_list <- strsplit(lines, split = ' ')
