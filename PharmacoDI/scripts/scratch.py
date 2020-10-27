@@ -112,14 +112,14 @@ def build_pset_tables(pset_dict, pset_name):
         pset_dict, cells_df, drugs_df, datasets_df, tissues_df)
     drug_targets_df = build_drug_targets_df(pset_dict, drugs_df, targets_df)
 
-    dose_responses_df = build_dose_responses_df(pset_dict, experiments_df)
+    dose_responses_df = build_dose_response_df(pset_dict, experiments_df)
     profiles_df = build_profiles_df(pset_dict, experiments_df)
     dataset_statistics_df = build_dataset_stats_df(pset_dict, datasets_df)
 
     gene_drugs_df = build_gene_drugs_table()
 
     # TODO - how to not repeat the same code over and over? how to iterate through all tables
-    tissues_df.to_csv(f'{pset_name}_Tissues.gz', header=True,
+    tissues_df.to_csv(f'{pset_name}_Tissues.csv.gz', header=True,
                       index=False, compression='infer')
 
 
@@ -171,12 +171,14 @@ def drug_table(pset_dict):
 
 def build_targets_table(pset_dict, genes_df):
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
-    target_df = pset_dict['drug'][['TARGET']]
+    targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
+    targets_df = pd.DataFrame({'id': targets, 'name': targets})
+    targets_df['gene_id'] = np.nan #TODO - fill in
     # target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
     #     ['TARGET', 'id']]
     # target_df.columns = ['name', 'gene_id']
 
-    return target_df
+    return targets_df
 
 
 # TODO - confirm that you're using the correct cell id
@@ -193,7 +195,7 @@ def build_cells_table(pset_dict, tissues_df):
     cell_df.columns = ['name', 'tissue_id']
     cell_df['id'] = cell_df['name']
 
-    return cell_df
+    return cell_df[['id', 'name', 'tissue_id']]
 
 
 def build_annotation_dfs(pset_dict, gene_df, drug_df):
@@ -206,35 +208,34 @@ def build_annotation_dfs(pset_dict, gene_df, drug_df):
     @return: [(`DataFrame`, `DataFrame`)]
     """
     # Make gene_annotations df
-    # TODO - add gene_seq_start, gene_seq_end
-    gene_annotations_df = pd.DataFrame(columns=['gene_id', 'symbol',
-                                                'gene_seq_start', 'gene_seq_end'])
-    # pset_dict['molecularProfiles']['rna']['rowData'][['Symbol']]
+    gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][['EnsemblGeneId', 'Symbol']]
+    gene_annotations_df.columns = ['gene_id', 'symbol']
+    gene_annotations_df['gene_seq_start'] = np.nan  #TODO - fill in
+    gene_annotations_df['gene_seq_end'] = np.nan    #TODO - fill in
 
     # Make drug_annotations df
-    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey',
-                                             'cid', 'FDA']]
-    drug_annotations_df.columns = [
-        'name', 'smiles', 'inchikey', 'pubchem', 'fda_status']
-    # Create foreign key to drug_df
-    drug_annotations_df = pd.merge(
-        drug_df, drug_annotations_df, on='name', how='right')
+    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
+    drug_annotations_df.columns = ['drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status']
+    # Create foreign key to drug_df TODO - check this
+    #drug_annotations_df = pd.merge(drug_df, drug_annotations_df, on='name', how='right')
     # Drop name column once you've merged on it
-    drug_annotations_df.drop('name', axis='columns', inplace=True)
-
+    #drug_annotations_df.drop('name', axis='columns', inplace=True)
     return drug_annotations_df, gene_annotations_df
 
 
-def build_datasets_cells_df(pset_dict, cell_df, dataset_id):
-    datasets_cells_df = pd.merge(pset_dict['cell'][[
-                                 'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
-    datasets_cells_df.rename(columns={"id": "cell_id"}, inplace=True)
-    datasets_cells_df['dataset_id'] = dataset_id
-    return datasets_cells_df
+def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
+    datasets_cells_df = pd.DataFrame({'dataset_id': dataset_id, 'cell_id': cells_df['id']})
+    datasets_cells_df['id'] = datasets_cells_df.index + 1
+    #datasets_cells_df = pd.merge(pset_dict['cell'][[
+    #                             'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
+    #datasets_cells_df.rename(columns={"id": "cell_id"}, inplace=True)
+    #datasets_cells_df['dataset_id'] = dataset_id
+    return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
 
 
 def build_mol_cells_df(pset_dict, cells_df, datasets_df):
     # mol_cells - join table between dataset and cell, will hold the molecular data types available for that cell line
+
     return None
 
 
