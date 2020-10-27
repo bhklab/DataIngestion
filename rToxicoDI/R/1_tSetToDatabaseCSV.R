@@ -25,15 +25,15 @@ tSetToDBtables <- function(tSet, lab_out) {
                       )
   compounds1 <- copy(compounds)
   
-  annot <- fread("../metadata/Drug_annotations_V2.1.csv")
+  annot <- fread("metadata/Drug_annotations_V2.1.csv")
   colnames(annot)[2] <- "name"
 
   annot <- annot[compounds, on = "name"]
   annot <- annot[!duplicated(name), ]
-  compounds1[an, on="name", ctd := i.ctd]
+  compounds1[annot, on="name", cid := i.cid]
   
   
-  whichAn <- which(an$name %in% compounds$name)
+  whichAnnot <- which(annot$name %in% compounds$name)
   
   ## compound ANNOTATION
   compound_annotations <- data.table(
@@ -84,13 +84,11 @@ tSetToDBtables <- function(tSet, lab_out) {
 
   ## TODO:: Consider adding Taxonomy table as three way join of cells, species and
   ## CELLS
-  cells <- data.table(distinct(as.data.frame(phenoInfo(tSet, "rna")[, c("cellid", "organ_id")])))
-  cells <- data.table(
-    'id' = cells[,.I],
-    cells,
-    'tissue_id' = vapply(cells$organ_id, function(x) { which(tissues$name %in% x) }, FUN.VALUE = numeric(1))
-    )
-  cells <- cells[, organ_id := NULL]
+  cells <- distinct(as.data.table(phenoInfo(tSet, "rna")[, c("cellid"), drop=FALSE]))
+  cellInf <- as.data.table(cellInfo(tSet))
+  cells <- cells[cellInf[, .(cellid, tissueid)], on='cellid']
+  cells[, id := seq_len(.N)]
+  setcolorder(cells, c('id', 'cellid', 'tissueid'))
   colnames(cells) <- c("id", "name", "tissue_id")
 
   ## SAMPLES
@@ -129,7 +127,7 @@ tSetToDBtables <- function(tSet, lab_out) {
   ## GENERATE PATHWAYS TABLE FROM FILE
 
   # Read in file lines a stings
-  lines <- readLines("../metadata/pathways_raw.txt")
+  lines <- readLines("metadata/pathways_raw.txt")
 
   # Split the lines in
   line_list <- strsplit(lines, split = ' ')
@@ -178,7 +176,9 @@ tSetToDBtables <- function(tSet, lab_out) {
 
   ## compoundS_DATASETS
   compounds_datasets <- expand.grid(compounds$id, datasets$id)
-  compounds_datasets$unique_id <- unique(phenoInfo(tSet, 'rna')$dataset_drugid)
+  phenoInf <- phenoInfo(tSet, 'rna')
+  colnames(phenoInf) <- gsub('\\.', '_', colnames(phenoInf))
+  compounds_datasets$unique_id <- unique(phenoInf$dataset_drugid)
   colnames(compounds_datasets) <- c("compound_id", "dataset_id", "compound_uid")
 
   ## GENES_DATASETS
@@ -210,120 +210,34 @@ tSetToDBtables <- function(tSet, lab_out) {
                                     'analysis_id', 'expression')
   rownames(compound_gene_response) <- NULL
 
-  #### DIFFENTIAL GENE EXPRESION ANALYSIS ####
-  library(limma)
+  #### ALL compounds AT THE SAME TIME
 
-  #### ALL compoundS AT THE SAME TIME
-
-  # Average replicate values for each compound gene pair
-  SE <- tSet@molecularProfiles$rna
-  eset <- as(SE, 'ExpressionSet')
-  eset$drugid <- make.names(eset$drugid)
-  
-  # Samples, compounds, dose
-  targets <- as.data.frame(pData(eset)[, c("samplename", "drugid", 
-                                           "dose_level", "duration")])
-  
-  # Create combined design condition
-  compound <- factor(targets$drugid)
-  dose <- factor(targets$dose_level)
-  duration <- factor(targets$duration)
-  
-  design <- model.matrix(~0 + compound:dose:duration)
-  colnames(design) <- gsub(':', '.', colnames(design))
-  
-  # Fit a linear model based on design matrix
-  fit <- lmFit(eset, design)
-
-  # Set up parrallelization cluster to construct the contrast coefficients 
-  #   we want to extract from the model
-  ##TODO:: Implement parallelization with biocParallel
-  #snowParam <- snowParam(workers=(parralel::detectCores() - 1))
-  
-  # Generate a vector of all valid dose-duration combinations for each compound
-  coefs <- c()
-  if (name(tSet) == 'drugMatrix_rat') {
-    for (drg in levels(compound)) {
-      doseDurations <- grep('High|Middle|Low',
-                            paste0('compound', pData(eset)$drugid, 
-                                   '.dose', pData(eset)$dose_level, 
-                                   '.duration', pData(eset)$duration),
-                            value=TRUE)
-      coefs <- c(coefs,
-                 paste0(doseDurations, '-', 
-                        gsub('compound.*dose',
-                             'compoundDMSO.dose',
-                          gsub('doseHigh|doseMiddle|doseLow', 
-                              'doseControl', doseDurations))
-                 )
-      )
-    }
-  } else {
-    for (drg in levels(compound)) {
-      doseDurations <- grep('High|Middle|Low',
-                            paste0('compound', pData(eset)$drugid, 
-                                   '.dose', pData(eset)$dose_level, 
-                                   '.duration', pData(eset)$duration),
-                            value=TRUE)
-      coefs <- c(coefs,
-                 paste0(doseDurations, '-', gsub('doseHigh|doseMiddle|doseLow', 
-                                                 'doseControl', doseDurations))
-      )
-    }
-  }
-  
-  # Remove duplicated contrasts
-  coefs <- unique(coefs)
-  
-  # Make contrasts matrix for fitting LM
-  contrasts <- makeContrasts(contrasts=coefs, levels=design)  
-  contrFit <- contrasts.fit(fit, contrasts)
- 
-  # Predict coefficients using emperical Bayes moderation of SE
-  # Generate a t-stat, moderated F-stat and log-odds of differential expression
-  stats <- eBayes(contrFit)
-
-  saveRDS(stats, file = paste0('../results/', 'limma_stats', lab_out, '.rds'))
-  
-  compoundNames <- make.names(compounds$name)
-  resultList <- lapply(coefs, function(coef) {
-    # Disassmble contrasts into annotations for this statistical test
-    annotations <- unlist(strsplit(
-      unlist(lapply(strsplit(coef, '-'), function(str) str[1])), 
-      'compound|.dose|.duration'))
-    # Get the compound_id from 
-    compound_id <- which(compoundNames %in% annotations[2])
-    data.table(
-      "gene_id" = seq_len(nrow(stats)),
-      "compound_id" = rep(compound_id, nrow(stats)),
-      "dose" = rep(annotations[3], nrow(stats)), 
-      "time" = rep(annotations[4], nrow(stats)),
-      topTreat(stats, 
-      coef=coef,
-      sort.by="none",
-      number='all',
-      adjust.method="BH")[, c("logFC", "B", "P.Value", "adj.P.Val", "AveExpr")]
-    )
-  })
-  analysis <- rbindlist(resultList)
-
-  # Update column names
-  colnames(analysis)[5:length(colnames(analysis))] <- c("fold_change", 
-                                                        "log_odds", 
-                                                        "p_value", 
-                                                        "fdr", 
-                                                        "avg_expr")
+  analysis <- computeLimmaDiffExpr(tSet)
   analysis <- data.table("id" = seq_len(nrow(analysis)), analysis)
-  
+  setnames(analysis, c('gene', 'compound', 'duration', 'cell'),
+      c('gene_id', 'compound_id', 'time', 'cell_id'))
+
+  # get  compound_ids
+  analysis[compounds[name != 'DMSO'], on=c(compound_id='name'), compound_id := i.id]
+  analysis[, compound_id := as.numeric(compound_id)]
+
+  # get gene_ids
+  analysis[genes, on=c(gene_id='name'), gene_id := i.id]
+  analysis[, gene_id := as.numeric(gene_id)]
+
+  # get cell_ids
+  analysis[cells, on=c(cell_id='name'), cell_id := i.id]
+  analysis[, cell_id := as.numeric(cell_id)]
+
   ##TODO:: Move this to table creation
   # Fix data type for time in samples
   samples[, time:= as.character(time)]
+  analysis[, time := as.character(time)]
   
   # Join analysis to samples to get sample_id for each compound/dose/time combination
   setkey(samples, compound_id, dose, time)
-  setkey(analysis, gene_id, compound_id, dose, time)
-  analysis[samples[replicate==1 & dose %in% unique(analysis)$dose, ], 
-           on=c(compound_id='compound_id', dose='dose', time='time'), 
+  setkey(analysis, compound_id, dose, time)
+  analysis[samples[replicate == 1 & dose %in% unique(analysis)$dose, ],
            sample_id := i.id]
   
   # Label compound_gene_response rows by matching analysis id
@@ -339,19 +253,11 @@ tSetToDBtables <- function(tSet, lab_out) {
   #   stop("Mapping issue between compound_gene_response and analysis tables!")
   # }
 
-  de <- merge(analysis, genes, by.x = 'gene_id', by.y = 'id')
-  de <- merge(de, compounds, by.x = 'compound_id', by.y = 'id')
-  colnames(de) <- c('compound_id', 'gene_id', 'analysis_id', 'dose', 'time', 
-                    'fold_change', 'log_odds', 'p_value', 'fdr', 'avg_expr',
-                    'sample_id', 'gene', 'compound')
-  
-  fwrite(de, file = paste0('../results/analysiscompoundsGenes', lab_out, '.csv'))
-  
   # Drop extra columns used for matching
   analysis <- analysis[, .SD, .SDcols = !c('gene_id', 'compound_id', 'dose', 
-                                           'time', 'sample_id')]
+                                           'time', 'sample_id', 'cell_id')]
 
-  if (name(tSet) == 'drugMatrix_rat') {
+  if (name(tSet) %in% c('drugMatrix_rat', 'EMEXP2458')) {
     viabilities <- data.table()
   }
 
@@ -361,11 +267,11 @@ tSetToDBtables <- function(tSet, lab_out) {
                "species", "tissues", "cells", "viabilities",
                "analysis", "pathways", "pathways_genes", "pathways_datasets")
   ) {
-    fwrite(get(df), file = paste0('../results/',df, lab_out, ".csv"), row.names = FALSE, na = "", eol = "\r\n", sep = ",")
+    fwrite(get(df), file = paste0('results/',df, lab_out, ".csv"), row.names = FALSE, na = "", eol = "\r\n", sep = ",")
   }
 
   # Faster for writing to disk with large (> 1 million rows) data frames/tables
-  fwrite(compound_gene_response, file = paste0("../results/", "compound_gene_response", lab_out, ".csv"), row.names = FALSE, na = "", eol = "\r\n", sep = ",")
+  fwrite(compound_gene_response, file = paste0("results/", "compound_gene_response", lab_out, ".csv"), row.names = FALSE, na = "", eol = "\r\n", sep = ",")
 
   rm(list = c("compounds", "compounds_datasets", "datasets", "genes_datasets", "genes",
        "gene_annotations", "compound_annotations", "datasets_samples", "samples",
