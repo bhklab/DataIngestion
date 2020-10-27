@@ -1,0 +1,6 @@
+# ignore
+metadata/*
+scripts/*
+procdata/*
+tSets/*
+renv.lock

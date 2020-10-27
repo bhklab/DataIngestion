@@ -1,17 +1,25 @@
 Package: ToxicoDI
 Title: An ETL Pipeline for Converting ToxicoSets to ToxicoDB Tables
 Version: 0.0.1
-Authors@R: 
+Authors@R: c(
     person("Christopher", "Eeles", role = c("aut"),
            email = "christopher.eeles@uhnresearch.ca"),
     person("Benjamin", "Haibe-Kains", role=c("aut", "cre"),
-           email = "benjamin.haibe.kains@utoronto.ca")
+           email = "benjamin.haibe.kains@utoronto.ca"))
 Description: A pipeline for processing ToxicoSet R objects into the .csv files
     used to seed the ToxicoDB MySQL database. This package provides a set of
     functions and tools for constructing tables which match the ToxicoDB
     schema.
+Depends: R (>= 4.0), ToxicoGx
+Imports:
+    data.table
 License: `use_mit_license()`
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.1
+Collate: 
+    'extractCompoundTable.R'
+    'extractCellTable.R'
+    'extractGeneTable.R'
+    'extractSampleTable.R'
