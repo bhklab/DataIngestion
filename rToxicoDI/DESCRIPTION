@@ -22,5 +22,6 @@ Collate:
     'extractCompoundTable.R'
     'extractCellTable.R'
     'extractGeneTable.R'
+    'extractMolecularProfileTable.R'
     'extractSampleTable.R'
     'utilities.R'
