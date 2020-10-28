@@ -11,8 +11,8 @@
 extractSampleTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     # handle errors
-    if (!is(tSet, 'ToxicoSet'))
-        stop('[rPharmacoDI::extractSampleTable] tSet must be a ToxicoSet object!')
+    if (!is(tSet, 'ToxicoSet')) stop('[rPharmacoDI::extractSampleTable]
+        tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
@@ -28,15 +28,10 @@ extractSampleTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
             'individual_id'),
         new=c('name', 'compound_id', 'cell_id', 'dose', 'time', 'replicate'))
 
-    # process the file name
-    fileName <- split(fileName, ' ')
-    if (length(fileName) > 1)
-        fileName <- paste(fileName[-length(fileName)], collapse='_')
-    else
-        fileName <- unlist(fileName)
+    fileName <- .preprocessFileName(fileName)
 
     # write to disk
-    fwrite(sampleInfo, file=file.path(outDir, paste0(fileName, '.csv')))
+    fwrite(sampleInfo, file=file.path(outDir, fileName))
 }
 
 #' Contruct the sample table for for each `ToxicoSet` from a list of `ToxicoSet`s

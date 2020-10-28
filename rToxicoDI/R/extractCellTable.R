@@ -25,14 +25,10 @@ extractCellTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     setnames(cellInfo, c('cellid', 'tissueid'), c('name', 'tissue_id'))
 
     # process the file name
-    fileName <- split(fileName, ' ')
-    if (length(fileName) > 1)
-        fileName <- paste(fileName[-length(fileName)], collapse='_')
-    else
-        fileName <- unlist(fileName)
+    fileName <- .preprocessFileName(fileName)
 
     # save to csv
-    fwrite(cellInfo, file=file.path(outDir, paste0(fileName, '.csv')))
+    fwrite(cellInfo, file=file.path(outDir, fileName))
 }
 
 #' Contruct the cell for for each `ToxicoSet` from a list of `ToxicoSet`s

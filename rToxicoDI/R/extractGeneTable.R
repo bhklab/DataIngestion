@@ -27,15 +27,10 @@ extractGeneTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
         old= c("Symbol", "EntrezGene.ID", "transcript_name", "transcript_id"),
         new=c('symbol', 'entrez_gid', 'transcript_name', 'transcript_id'))
 
-    # process the file name
-    fileName <- split(fileName, ' ')
-    if (length(fileName) > 1)
-        fileName <- paste(fileName[-length(fileName)], collapse='_')
-    else
-        fileName <- unlist(fileName)
+    fileName <- .preprocessFileName(fileName)
 
     # write to disk
-    fwrite(geneInfo, file=file.path(outDir, paste0(fileName, '.csv')))
+    fwrite(geneInfo, file=file.path(outDir, fileName))
 }
 
 #' Contruct the gene table for for each `ToxicoSet` from a list of `ToxicoSet`s

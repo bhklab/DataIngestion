@@ -20,14 +20,9 @@ extractCompoundTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     compoundInfo <- as.data.table(drugInfo(tSet))[, 'drugid']
     setnames(compoundInfo, 'drugid', 'name')
 
-    # process the file name
-    fileName <- split(fileName, ' ')
-    if (length(fileName) > 1)
-        fileName <- paste(fileName[-length(fileName)], collapse='_')
-    else
-        fileName <- unlist(fileName)
+    fileName <- .preprocessFileName(fileName)
 
-    fwrite(compoundInfo, file=file.path(outDir, paste0(fileName, '.csv')))
+    fwrite(compoundInfo, file=file.path(outDir, fileName))
 }
 
 
@@ -42,7 +37,8 @@ extractCompoundTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 #' @export
 extractAllCompoundTables <- function(tSets, outDir=tempdir()) {
 
-    ## FIXME:: Error handling
+    if (!is.list(tSets)) stop('\n[rToxicoDI::extractAllCompoundTables] tSets must
+        be a list of `ToxicoSet` objects!')
 
     for (tSet in tSets) extractCompoundTable(tSet, outDir=outDir)
 }
