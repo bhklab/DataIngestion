@@ -7,7 +7,7 @@
 #' @import data.table
 #' @md
 #' @export
-extractMolecularProfileTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
+extractMolecProfTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     if (!is(tSet, 'ToxicoSet'))
         stop(.context(), ' tSet must be a ToxicoSet object!')
@@ -35,7 +35,7 @@ extractMolecularProfileTable <- function(tSet, outDir=tempdir(), fileName=name(t
 #'
 #' @md
 #' @export
-extractAllMolecularProfileTables <- function(tSets, outDir=tempdir()) {
+extractAllMolecProfTables <- function(tSets, outDir=tempdir()) {
 
     if (!is.list(tSets))
         stop(.context(), 'tSets must be a list of `ToxicoSet` objects!')
