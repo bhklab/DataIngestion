@@ -8,9 +8,9 @@
 #' @md
 #' @export
 extractMolecularProfileTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
-    # handle errors
+
     if (!is(tSet, 'ToxicoSet'))
-        stop('[rPharmacoDI::extractCellTable] tSet must be a ToxicoSet object!')
+        stop(.context(), ' tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
@@ -36,9 +36,9 @@ extractMolecularProfileTable <- function(tSet, outDir=tempdir(), fileName=name(t
 #' @md
 #' @export
 extractAllMolecularProfileTables <- function(tSets, outDir=tempdir()) {
-    # handle errors
-    if (!is.list(tSets)) stop('\n[rToxicoDI::extractAllMolecularProfileTables]
-        tSets must be a list of `ToxicoSet` objects!')
+
+    if (!is.list(tSets))
+        stop(.context(), 'tSets must be a list of `ToxicoSet` objects!')
 
     for (tSet in tSets) extractMolecularProfileTable(tSet, outDir=outDir)
 }

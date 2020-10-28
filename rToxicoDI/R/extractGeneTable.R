@@ -11,8 +11,11 @@
 extractGeneTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     # handle errors
+    context <- .getExecutionContext()
+    context <- paste0(context, collapse='::')
+
     if (!is(tSet, 'ToxicoSet'))
-        stop('[rPharmacoDI::extractGeneTable] tSet must be a ToxicoSet object!')
+        stop(context, ' tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
@@ -20,7 +23,7 @@ extractGeneTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     # get the required data from the tSet
     geneInfo <- as.data.table(featureInfo(tSet, 'rna'))[,
         c('gene_id', "Symbol", "EntrezGene.ID", "transcript_name",
-        "transcript_id")]
+            "transcript_id")]
 
     # rename columns by reference
     setnames(geneInfo,
@@ -43,8 +46,12 @@ extractGeneTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 #' @export
 extractAllGeneTables <- function(tSets, outDir=tempdir()) {
 
-    if (!is.list(tSets)) stop('\n[rToxicoDI::extractAllGeneTables] tSets must be
-        a list of ToxicoSet objects')
+    # handle errors
+    context <- .getExecutionContext()
+    context <- paste0(context, collapse='::')
+
+    if (!is.list(tSets)) stop('\n', context, 'tSets must be a list of
+        `ToxicoSet` objects!')
 
     for (tSet in tSets) extractGeneTable(tSet, outDir=outDir)
 }

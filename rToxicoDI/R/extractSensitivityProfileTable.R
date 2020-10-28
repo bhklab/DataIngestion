@@ -8,18 +8,30 @@
 #' @md
 #' @export
 extractSensitivityProfileTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
-    # handle errors
+
     if (!is(tSet, 'ToxicoSet'))
-        stop('[rPharmacoDI::extractCellTable] tSet must be a ToxicoSet object!')
+        stop(.context(), ' tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
 
     # get the data
-    sensitivityProfile <- as.data.table(sensitivityProfiles(tSet, 'rna'),
-        keep.rownames='gene_id')
-    sensitivityProfile <- melt.data.table(sensitivityProfile, id.vars='gene_id',
-        variable.name='sample_id', value.name='expression')
+    sensInfo <- as.data.table(sensitivityInfo(tSet), keep.rownames='rownames')
+    if (nrow(sensInfo) < 1) {  # stop if there are no profiles
+        message(.context(), name(tSet), ' has no sensitivty profiles.')
+        return()
+    }
+    sensitivityProfile <- as.data.table(sensitivityRaw(tSet)[,, 2],
+        keep.rownames='rownames')
+
+    # wide -> long format
+    sensInfo <-
+
+    # join the sensitivity annotations to the data
+    setkeyv(sensitivityProfile, 'rownames')
+    setkeyv(sensInfo, 'rownames')
+    sensitivityProfile <- sensInfo[sensitivityProfile]
+
 
     fileName <- .preprocessFileName(fileName)
 
@@ -37,8 +49,8 @@ extractSensitivityProfileTable <- function(tSet, outDir=tempdir(), fileName=name
 #' @export
 extractAllSensitivityProfileTables <- function(tSets, outDir=tempdir()) {
     # handle errors
-    if (!is.list(tSets)) stop('\n[rToxicoDI::extractAllSensitivityProfileTables]
-        tSets must be a list of `ToxicoSet` objects!')
+    if (!is.list(tSets))
+        stop(.context(), 'tSets must be a list ToxicoSet objects!')
 
     for (tSet in tSets) extractSensitivityProfileTable(tSet, outDir=outDir)
 }

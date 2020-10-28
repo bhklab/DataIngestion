@@ -12,7 +12,8 @@ Description: A pipeline for processing ToxicoSet R objects into the .csv files
     schema.
 Depends: R (>= 4.0), ToxicoGx
 Imports:
-    data.table
+    data.table,
+    rlang
 License: `use_mit_license()`
 Encoding: UTF-8
 LazyData: true
@@ -24,4 +25,5 @@ Collate:
     'extractGeneTable.R'
     'extractMolecularProfileTable.R'
     'extractSampleTable.R'
+    'extractSensitivityProfileTable.R'
     'utilities.R'

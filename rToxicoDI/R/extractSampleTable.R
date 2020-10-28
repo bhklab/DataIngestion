@@ -10,9 +10,8 @@
 #' @export
 extractSampleTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
-    # handle errors
-    if (!is(tSet, 'ToxicoSet')) stop('[rPharmacoDI::extractSampleTable]
-        tSet must be a ToxicoSet object!')
+    if (!is(tSet, 'ToxicoSet'))
+        stop(.context(), 'tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
@@ -45,8 +44,8 @@ extractSampleTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 #' @export
 extractAllSampleTables <- function(tSets, outDir=tempdir()) {
 
-    if (!is.list(tSets)) stop('\n[rToxicoDI::extractAllSampleTables] tSets must
-        be a list of `ToxicoSet` objects!')
+    if (!is.list(tSets))
+        stop(.context(), 'tSets must be a list of ToxicoSet objects!')
 
     for (tSet in tSets) extractSampleTable(tSet, outDir=outDir)
 }

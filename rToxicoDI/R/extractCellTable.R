@@ -12,7 +12,7 @@ extractCellTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     # handle errors
     if (!is(tSet, 'ToxicoSet'))
-        stop('[rPharmacoDI::extractCellTable] tSet must be a ToxicoSet object!')
+        stop(.context(), 'tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
@@ -42,8 +42,8 @@ extractCellTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 #' @export
 extractAllCellTables <- function(tSets, outDir=tempdir()) {
 
-    if (!is.list(tSets)) stop("[rToxicoDI::extractAllCellTables] tSets must be
-        a list of ToxicoSet objects")
+    if (!is.list(tSets))
+        stop(.context(), 'tSets must be a list of ToxicoSet objects!')
 
     for (tSet in tSets) extractCellTable(tSet, outDir=outDir)
 }
