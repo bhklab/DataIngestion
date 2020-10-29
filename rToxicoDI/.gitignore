@@ -1,0 +1,10 @@
+tSets/*
+*rds
+.git
+*Rproj
+*.RData
+scripts/*
+procdata/*
+
+# EXCEPTIONS
+!results/placeholder.txt
