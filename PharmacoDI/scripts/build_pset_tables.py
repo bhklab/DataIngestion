@@ -6,6 +6,8 @@ import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
 file_path = 'pset_tables'  # the directory where you want to store the tables
+gene_sig_file_path = os.path.join(
+    'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
 
 
 def build_pset_tables(pset_dict, pset_name, file_path):
@@ -42,9 +44,9 @@ def build_pset_tables(pset_dict, pset_name, file_path):
         pset_dict, pset_dfs['experiments'])
     pset_dfs['profiles'] = build_profiles_df(pset_dict)
     pset_dfs['dataset_statistics'] = build_dataset_stats_df(
-        pset_dict, pset_name)
+        pset_dict, pset_dfs, pset_name)
 
-    pset_dfs['gene_drugs'] = build_gene_drugs_df()
+    pset_dfs['gene_drugs'] = build_gene_drugs_df(gene_sig_file_path, pset_name)
 
     # Write all tables to csv
     write_dfs_to_csv(pset_dfs, pset_name, file_path)
@@ -59,15 +61,16 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
     """
     file_path = os.path.join(df_dir, pset_name)
 
+    # TODO - Consider splitting into more partitions; test out speed
     for df in pset_dfs.keys():
         # Convert pandas df into dask df
         dask_df = dd.from_pandas(pset_dfs[df], npartitions=1)
         # Write dask_df to csv
-        dd.to_csv(dask_df, os.path.join(file_path, f'{pset_name}_{df}.csv'), compression='gzip')
+        dd.to_csv(dask_df, os.path.join(
+            file_path, f'{pset_name}_{df}.csv'), compression='gzip')
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
-
 
 def build_primary_tables(pset_dict):
     """
@@ -157,7 +160,6 @@ def build_drug_annotations_df(pset_dict):
 
 # --- OTHER TABLES ----------------------------------------------------------------------------
 
-
 def build_targets_df(pset_dict, genes_df):
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
     targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
@@ -226,8 +228,6 @@ def build_clinical_trials_df(pset_dict, drugs_df):
 # If pass by reference may need to make a copy before using inplace=TRUE argument
 # to prevent modifying the original experiments table
 # NOTE: database tables should always use singular names
-
-
 def build_dose_response_df(pset_dict, experiment_df):
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
@@ -324,11 +324,18 @@ def build_profiles_df(pset_dict):
     return profiles_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
 
 
+def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
+    return pd.DataFrame({
+        'id': 1,
+        'dataset_id': pset_name,
+        'cell_lines': len(pset_dfs['cell'].index),
+        'tissues': len(pset_dfs['tissue'].index),
+        'drugs': len(pset_dfs['drug'].index),
+        'experiments': len(pset_dfs['experiments'].index)
+    })
+
+
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
-
-gene_sig_file_path = os.path.join(
-    'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')
-
 
 def read_gene_sig(pset_name, file_path):
     # Find correct pset gene signature CSV file
@@ -341,7 +348,10 @@ def read_gene_sig(pset_name, file_path):
     return pd.read_csv(pset_file)
 
 
-def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id):
+def build_gene_drugs_df(gene_sig_file_path, pset_name):
+    # Get gene_sig_df from gene_sig_file
+    gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
+
     # Extract relevant columns
     gene_drugs_df = gene_sig_df[[
         'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
@@ -359,9 +369,11 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
     gene_drugs_df['tested_in_human_trials'] = np.nan
     gene_drugs_df['in_clinical_trials'] = np.nan
 
-    # Add all foreign keys (gene_id, drug_id, tissue_id, dataset_id)
+    # Rename foreign key columns
+    gene_drugs_df.rename(columns={'drug': 'drug_id', 'tissue': 'tissue_id'})
 
-    # Join with genes_df
+    # Don't need joins anymore because just need names not indices??
+    """ # Join with genes_df
     gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
                              left_on='name', right_on='gene_id', how='right')
     # Drop gene name columns after merge & rename 'id' column
@@ -381,12 +393,22 @@ def build_gene_drugs_df(gene_sig_df, genes_df, drugs_df, tissues_df, dataset_id)
                              left_on='tissue', right_on='name', how='left')
     # Drop tissue name columns after merge & rename 'id' column
     gene_drugs_df.drop(['name', 'tissue'], axis='columns', inplace=True)
-    gene_drugs_df.rename(columns={"id": "tissue_id"}, inplace=True)
+    gene_drugs_df.rename(columns={"id": "tissue_id"}, inplace=True) """
 
     # Add dataset id
-    gene_drugs_df['dataset_id'] = dataset_id
+    gene_drugs_df['dataset_id'] = pset_name
 
-    # Reorder columns (omit red cols and PK)
-    return gene_drugs_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'pvalue',
-                          'df', 'fdr', 'dataset_id', 'sens_stat', 'tissue_id',
+    # Add missing columns (TODO - get this data)
+    gene_drugs_df['tstat'] = np.nan
+    gene_drugs_df['fstat'] = np.nan
+    gene_drugs_df['FWER_genes'] = np.nan
+    gene_drugs_df['FWER_drugs'] = np.nan
+    gene_drugs_df['FWER_all'] = np.nan
+    gene_drugs_df['BF_p_all'] = np.nan
+    gene_drugs_df['meta_res'] = np.nan
+
+    # Reorder columns
+    return gene_drugs_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'tstat', 'fstat',
+                          'pvalue', 'df', 'fdr', 'FWER_genes', 'FWER_drugs', 'FWER_all',
+                          'BF_p_all', 'meta_res', 'dataset_id', 'sens_stat', 'tissue_id',
                           'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
