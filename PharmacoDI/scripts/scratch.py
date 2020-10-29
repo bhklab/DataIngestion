@@ -338,9 +338,26 @@ def build_experiment_df(pset_dict, cell_df, dataset_id):
 
 
 def build_profiles_df(pset_dict):
+    # Get profiles info
+    profiles_df = pset_dict['sensitivity']['profiles']
 
-    # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
+    # Get experiment_id by joining with sensitivity info df
+    profiles_df = pd.merge(profiles_df, pset_dict['sensitivity']['info'][['.rownames', 'exp_id']], on='.rownames', how='left')
+    
+    # Drop .rownames column after join
+    profiles_df.drop('.rownames', axis='columns', inplace=True)
 
+    # Rename columns TODO - double check tomorrow that these are correctly renamed
+    profiles_df.columns = ['AAC', 'IC50', 'HS', 'Einf', 'EC50', 'experiment_id']
+
+    # Add DSS columns - TODO get these values from somewhere?
+    profiles_df['DSS1'] = np.nan
+    profiles_df['DSS2'] = np.nan
+    profiles_df['DSS3'] = np.nan
+
+    return profiles_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
+
+# --- GENE_DRUGS TABLE --------------------------------------------------------------------------
 
 gene_sig_file_path = os.path.join(
     file_path, 'gene_signatures', 'pearson_perm_res')
