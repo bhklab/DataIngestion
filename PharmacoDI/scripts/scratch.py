@@ -169,11 +169,12 @@ def drug_table(pset_dict):
 
 # --- OTHER TABLES -----------------------------------------------------------------------------
 
+
 def build_targets_df(pset_dict, genes_df):
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
     targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
     targets_df = pd.DataFrame({'id': targets, 'name': targets})
-    targets_df['gene_id'] = np.nan #TODO - fill in
+    targets_df['gene_id'] = np.nan  # TODO - fill in
     # target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
     #     ['TARGET', 'id']]
     # target_df.columns = ['name', 'gene_id']
@@ -192,7 +193,7 @@ def build_cells_df(pset_dict, tissues_df):
     """
     cells_df = pset_dict['cell'][['cellid', 'tissueid']]
     cells_df.columns = ['name', 'tissue_id']
-    cells_df['id'] = cells_df.loc[:, ('name')] # TODO - check copy warning
+    cells_df['id'] = cells_df.loc[:, ('name')]  # TODO - check copy warning
 
     return cells_df[['id', 'name', 'tissue_id']]
 
@@ -205,14 +206,18 @@ def build_annotation_dfs(pset_dict):
     @return: [(`DataFrame`, `DataFrame`)]
     """
     # Make gene_annotations df
-    gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][['EnsemblGeneId', 'Symbol']]
+    gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][[
+        'EnsemblGeneId', 'Symbol']]
     gene_annotations_df.columns = ['gene_id', 'symbol']
-    gene_annotations_df.loc[:, ('gene_seq_start')] = np.nan  #TODO - fill in
-    gene_annotations_df.loc[:, ('gene_seq_end')] = np.nan    #TODO - fill in & fix copy warning
+    gene_annotations_df.loc[:, ('gene_seq_start')] = np.nan  # TODO - fill in
+    # TODO - fill in & fix copy warning
+    gene_annotations_df.loc[:, ('gene_seq_end')] = np.nan
 
     # Make drug_annotations df
-    drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
-    drug_annotations_df.columns = ['drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status']
+    drug_annotations_df = pset_dict['drug'][[
+        'rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
+    drug_annotations_df.columns = [
+        'drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status']
 
     return drug_annotations_df, gene_annotations_df
 
@@ -221,7 +226,8 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     """
     add documentation
     """
-    datasets_cells_df = pd.DataFrame({'dataset_id': dataset_id, 'cell_id': cells_df['id']})
+    datasets_cells_df = pd.DataFrame(
+        {'dataset_id': dataset_id, 'cell_id': cells_df['id']})
     datasets_cells_df['id'] = datasets_cells_df.index + 1
 
     return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
@@ -229,10 +235,12 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
 
 def build_mol_cells_df(pset_dict, datasets_cells_df):
     # Get the number of times each cellid appears in colData
-    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts()
+    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts(
+    )
 
     # Join with datasets cells on cellid
-    mol_cells_df = pd.merge(datasets_cells_df, num_profiles, left_on='cell_id', right_on=num_profiles.index, how='left')
+    mol_cells_df = pd.merge(datasets_cells_df, num_profiles,
+                            left_on='cell_id', right_on=num_profiles.index, how='left')
     mol_cells_df.rename(columns={'cellid': 'num_prof'}, inplace=True)
 
     # Replace any NaN in the num_profiles column with 0
@@ -254,6 +262,8 @@ def build_clinical_trials_df(pset_dict, drugs_df):
 # If pass by reference may need to make a copy before using inplace=TRUE argument
 # to prevent modifying the original experiments table
 # NOTE: database tables should always use singular names
+
+
 def build_dose_response_df(pset_dict, experiment_df):
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
@@ -294,7 +304,7 @@ def build_dose_response_df(pset_dict, experiment_df):
     return dose_response_df
 
 
-def build_drug_targets_df(pset_dict, drug_df, target_df):
+def build_drug_targets_df(pset_dict, cells_df, target_df):
     """
     add documentation
     """
@@ -305,35 +315,32 @@ def build_drug_targets_df(pset_dict, drug_df, target_df):
     return drug_targets_df[['id', 'drug_id', 'target_id']]
 
 
-def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
+def build_experiment_df(pset_dict, cell_df, dataset_id):
+    """
+    add description
+    """
     # Extract relelvant experiment columns
     experiments_df = pset_dict['sensitivity']['info'][[
         'exp_id', 'cellid', 'drugid']]
 
-    # Join with cell_df
-    experiments_df = pd.merge(experiments_df, cell_df, left_on='cellid', right_on='name',
-                              how='left')[['exp_id', 'id', 'drugid', 'tissue_id']]
-    # Rename cell_id column (FK)
-    experiments_df.rename(columns={"id": "cell_id"}, inplace=True)
+    # Rename columns
+    experiments_df.columns = ['id', 'cell_id', 'drug_id']
 
-    # Join with drug_df
-    experiments_df = pd.merge(experiments_df, drug_df, left_on='drugid', right_on='name',
-                              how='left')[['exp_id', 'cell_id', 'id', 'tissue_id']]
-    # Rename drug_id column (FK)
-    experiments_df.rename(columns={"id": "drug_id"}, inplace=True)
-
-    # Add dataset_id
+    # Add datset_id column TODO - copy warning
     experiments_df['dataset_id'] = dataset_id
 
-    # TODO - get rid of exp_id; check if col order matters
+    # Add tissue_id column by joining with cells_df
+    experiments_df = pd.merge(
+        experiments_df, cell_df[['name', 'tissue_id']], left_on='cell_id', right_on='name',
+        how='left')[['id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id']]
 
     return experiments_df
 
 
 def build_profiles_df(pset_dict):
 
+    # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
 
-# --- GENE_DRUGS TABLE --------------------------------------------------------------------------
 
 gene_sig_file_path = os.path.join(
     file_path, 'gene_signatures', 'pearson_perm_res')
