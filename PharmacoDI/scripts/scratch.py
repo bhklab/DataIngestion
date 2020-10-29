@@ -190,53 +190,59 @@ def build_cells_table(pset_dict, tissues_df):
     @param tissue_df: [`DataFrame`]
     @return: [(`DataFrame`, `DataFrame`)]
     """
-    cell_df = pd.merge(pset_dict['cell'], tissues_df, left_on='tissueid', right_on='name',
-                       how='left')[['cellid', 'id']]
-    cell_df.columns = ['name', 'tissue_id']
-    cell_df['id'] = cell_df['name']
+    cells_df = pset_dict['cell'][['cellid', 'tissueid']]
+    cells_df.columns = ['name', 'tissue_id']
+    cells_df['id'] = cells_df.loc[:, ('name')] # TODO - check copy warning
 
-    return cell_df[['id', 'name', 'tissue_id']]
+    return cells_df[['id', 'name', 'tissue_id']]
 
 
-def build_annotation_dfs(pset_dict, gene_df, drug_df):
+def build_annotation_dfs(pset_dict):
     """
     build out drug_annotations and gene_annotations dfs
 
     @param pset_dict: [`dict`]
-    @param gene_df: [`DataFrame`]
-    @param drug_df: [`DataFrame`]
     @return: [(`DataFrame`, `DataFrame`)]
     """
     # Make gene_annotations df
     gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][['EnsemblGeneId', 'Symbol']]
     gene_annotations_df.columns = ['gene_id', 'symbol']
-    gene_annotations_df['gene_seq_start'] = np.nan  #TODO - fill in
-    gene_annotations_df['gene_seq_end'] = np.nan    #TODO - fill in
+    gene_annotations_df.loc[:, ('gene_seq_start')] = np.nan  #TODO - fill in
+    gene_annotations_df.loc[:, ('gene_seq_end')] = np.nan    #TODO - fill in & fix copy warning
 
     # Make drug_annotations df
     drug_annotations_df = pset_dict['drug'][['rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
     drug_annotations_df.columns = ['drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status']
-    # Create foreign key to drug_df TODO - check this
-    #drug_annotations_df = pd.merge(drug_df, drug_annotations_df, on='name', how='right')
-    # Drop name column once you've merged on it
-    #drug_annotations_df.drop('name', axis='columns', inplace=True)
+
     return drug_annotations_df, gene_annotations_df
 
 
 def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
+    """
+    add documentation
+    """
     datasets_cells_df = pd.DataFrame({'dataset_id': dataset_id, 'cell_id': cells_df['id']})
     datasets_cells_df['id'] = datasets_cells_df.index + 1
-    #datasets_cells_df = pd.merge(pset_dict['cell'][[
-    #                             'cellid']], cell_df, left_on='cellid', right_on='name', how='left')[['id']]
-    #datasets_cells_df.rename(columns={"id": "cell_id"}, inplace=True)
-    #datasets_cells_df['dataset_id'] = dataset_id
+
     return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
 
 
-def build_mol_cells_df(pset_dict, cells_df, datasets_df):
-    # mol_cells - join table between dataset and cell, will hold the molecular data types available for that cell line
+def build_mol_cells_df(pset_dict, datasets_cells_df, dataset_id):
+    # Get the number of times each cellid appears in colData
+    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts()
 
-    return None
+    # Join with datasets cells on cellid
+    mol_cells_df = pd.merge(datasets_cells_df, num_profiles, left_on='cell_id', right_on=num_profiles.index, how='left')
+    mol_cells_df.rename(columns={'cellid': 'num_prof'}, inplace=True)
+
+    # Replace any NaN in the num_profiles column with 0
+    mask = mol_cells_df.query('num_prof.isna()').index
+    mol_cells_df.loc[mask, 'num_prof'] = 0
+
+    # Set mDataType TODO - find mDataType???
+    mol_cells_df['mDataType'] = np.nan
+
+    return mol_cells_df[['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof']]
 
 
 # ---- Build dose response table
