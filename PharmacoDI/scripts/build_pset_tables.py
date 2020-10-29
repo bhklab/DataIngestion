@@ -5,7 +5,7 @@ import numpy as np
 import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
-file_path = 'pset_tables'  # the directory where you want to store the tables
+file_path = 'procdata'  # the directory where you want to store the tables (processed data)
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
 
@@ -14,7 +14,9 @@ dask_threshold = 1000000 # the maximum number of rows in a pandas df that can be
 
 def build_pset_tables(pset_dict, pset_name, file_path):
     """
-    Build all tables for this....
+    Build all tables for this
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     pset_dfs = {}
 
@@ -81,7 +83,7 @@ def build_primary_tables(pset_dict):
     """
     Build the tissues, drug, gene DataFrames.
 
-    @param pset_dict: [`dict`]
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     @return: [(`DataFrame`, `DataFrame`, `DataFrame`)]
     """
     tissues_df = tissue_table(pset_dict)
@@ -91,11 +93,12 @@ def build_primary_tables(pset_dict):
     return tissues_df, drugs_df, genes_df
 
 
-
 # TODO - check that you're getting the correct ID
 def gene_table(pset_dict):
     """
     Build the gene dataframe.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     genes = pd.Series(pd.unique(
         pset_dict['molecularProfiles']['rna']['rowData']['EnsemblGeneId']))
@@ -107,6 +110,8 @@ def gene_table(pset_dict):
 def tissue_table(pset_dict):
     """
     Build the tissue dataframe.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
     return pd.DataFrame({'id': tissues, 'name': tissues})
@@ -116,6 +121,8 @@ def tissue_table(pset_dict):
 def drug_table(pset_dict):
     """
     Build the drug dataframe.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     drugs = pd.Series(pd.unique(pset_dict['drug']['drugid']))
     return pd.DataFrame({'id': drugs, 'name': drugs})
@@ -127,7 +134,7 @@ def build_annotation_dfs(pset_dict):
     """
     build out drug_annotations and gene_annotations dfs
 
-    @param pset_dict: [`dict`]
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     @return: [(`DataFrame`, `DataFrame`)]
     """
     gene_annotations_df = build_gene_annotations_df(pset_dict)
@@ -139,6 +146,8 @@ def build_annotation_dfs(pset_dict):
 def build_gene_annotations_df(pset_dict):
     """
     add documentation
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     # Make gene_annotations df
     gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][[
@@ -154,6 +163,8 @@ def build_gene_annotations_df(pset_dict):
 def build_drug_annotations_df(pset_dict):
     """
     add documentation
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     # Make drug_annotations df
     drug_annotations_df = pset_dict['drug'][[
@@ -167,6 +178,9 @@ def build_drug_annotations_df(pset_dict):
 # --- OTHER TABLES ----------------------------------------------------------------------------
 
 def build_targets_df(pset_dict, genes_df):
+    """
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    """
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
     targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
     targets_df = pd.DataFrame({'id': targets, 'name': targets})
@@ -183,7 +197,7 @@ def build_cells_df(pset_dict, tissues_df):
     """
     ~ description ~ (build out cell and target dataframes)
 
-    @param pset_dict: [`dict`]
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     @param tissue_df: [`DataFrame`]
     @return: [(`DataFrame`, `DataFrame`)]
     """
@@ -194,38 +208,10 @@ def build_cells_df(pset_dict, tissues_df):
     return cells_df[['id', 'name', 'tissue_id']]
 
 
-def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
-    """
-    add documentation
-    """
-    datasets_cells_df = pd.DataFrame(
-        {'dataset_id': dataset_id, 'cell_id': cells_df['id']})
-    datasets_cells_df['id'] = datasets_cells_df.index + 1
-
-    return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
-
-
-def build_mol_cells_df(pset_dict, datasets_cells_df):
-    # Get the number of times each cellid appears in colData
-    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts(
-    )
-
-    # Join with datasets cells on cellid
-    mol_cells_df = pd.merge(datasets_cells_df, num_profiles,
-                            left_on='cell_id', right_on=num_profiles.index, how='left')
-    mol_cells_df.rename(columns={'cellid': 'num_prof'}, inplace=True)
-
-    # Replace any NaN in the num_profiles column with 0
-    mask = mol_cells_df.query('num_prof.isna()').index
-    mol_cells_df.loc[mask, 'num_prof'] = 0
-
-    # Set mDataType TODO - find mDataType???
-    mol_cells_df['mDataType'] = np.nan
-
-    return mol_cells_df[['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof']]
-
-
 def build_clinical_trials_df(pset_dict, drugs_df):
+    """
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    """
     return pd.DataFrame()
 
 # ---- Build dose response table
@@ -235,6 +221,9 @@ def build_clinical_trials_df(pset_dict, drugs_df):
 # to prevent modifying the original experiments table
 # NOTE: database tables should always use singular names
 def build_dose_response_df(pset_dict, experiment_df):
+    """
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    """
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
     response = pset_dict['sensitivity']['raw.Viability']
@@ -277,6 +266,8 @@ def build_dose_response_df(pset_dict, experiment_df):
 def build_drug_targets_df(pset_dict):
     """
     add documentation
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     drug_targets_df = pset_dict['drug'][['drugid', 'TARGET']]
     drug_targets_df.columns = ['drug_id', 'target_id']
@@ -288,6 +279,8 @@ def build_drug_targets_df(pset_dict):
 def build_experiments_df(pset_dict, cells_df, dataset_id):
     """
     add description
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     """
     # Extract relelvant experiment columns
     experiments_df = pset_dict['sensitivity']['info'][[
@@ -308,6 +301,9 @@ def build_experiments_df(pset_dict, cells_df, dataset_id):
 
 
 def build_profiles_df(pset_dict):
+    """
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    """
     # Get profiles info
     profiles_df = pset_dict['sensitivity']['profiles']
 
@@ -330,17 +326,6 @@ def build_profiles_df(pset_dict):
     return profiles_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
 
 
-def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
-    return pd.DataFrame({
-        'id': 1,
-        'dataset_id': pset_name,
-        'cell_lines': len(pset_dfs['cell'].index),
-        'tissues': len(pset_dfs['tissue'].index),
-        'drugs': len(pset_dfs['drug'].index),
-        'experiments': len(pset_dfs['experiments'].index)
-    })
-
-
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
 
 def read_gene_sig(pset_name, file_path):
@@ -355,6 +340,9 @@ def read_gene_sig(pset_name, file_path):
 
 
 def build_gene_drugs_df(gene_sig_file_path, pset_name):
+    """
+    add documentation
+    """
     # Get gene_sig_df from gene_sig_file
     gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
 
@@ -418,3 +406,71 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
                           'pvalue', 'df', 'fdr', 'FWER_genes', 'FWER_drugs', 'FWER_all',
                           'BF_p_all', 'meta_res', 'dataset_id', 'sens_stat', 'tissue_id',
                           'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
+
+
+# --- STATS/SUMMARY TABLES -----------------------------------------------------------------------
+
+def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
+    """
+    Builds a join table summarizing the cell lines that are in this dataset.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    @param cells_df: [`DataFrame`] The cell table for this dataset
+    @param dataset_id: [`string`] The name/id of the datset
+    @return: [`DataFrame`] The join table with all cell lines in this dataset
+    """
+    datasets_cells_df = pd.DataFrame(
+        {'dataset_id': dataset_id, 'cell_id': cells_df['id']})
+    datasets_cells_df['id'] = datasets_cells_df.index + 1
+
+    return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
+
+
+def build_mol_cells_df(pset_dict, experiments_df, gene_drugs_df):
+    """
+    Builds a table that summarizes which molecular data types are available in this
+    dataset for each cell line, and the number of profiles of each molecular data type.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    @param datasets_cells_df: [`DataFrame`] A table containing all the cells in this  
+        dataset and the datset name/id.
+    @return: [`DataFrame`] 
+    """
+
+    gene_drugs_df.groupby(['class', 'order'])
+
+    # Get the number of times each cellid appears in colData
+    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts()
+
+    # Join with datasets cells on cellid
+    mol_cells_df = pd.merge(datasets_cells_df, num_profiles,
+                            left_on='cell_id', right_on=num_profiles.index, how='left')
+    mol_cells_df.rename(columns={'cellid': 'num_prof'}, inplace=True)
+
+    # Replace any NaN in the num_profiles column with 0
+    mask = mol_cells_df.query('num_prof.isna()').index
+    mol_cells_df.loc[mask, 'num_prof'] = 0
+
+    # Set mDataType TODO - find mDataType???
+    mol_cells_df['mDataType'] = np.nan
+
+    return mol_cells_df[['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof']]
+
+
+def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
+    """
+    Summarizes how many cell lines, tissues, drugs, and experiments are contained
+    within the dataset.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
+    @param pset_name: [`string`]
+    @return: [(`DataFrame`, `DataFrame`)]
+    """
+    return pd.DataFrame({
+        'id': 1,
+        'dataset_id': pset_name,
+        'cell_lines': len(pset_dfs['cell'].index),
+        'tissues': len(pset_dfs['tissue'].index),
+        'drugs': len(pset_dfs['drug'].index),
+        'experiments': len(pset_dfs['experiments'].index)
+    })
