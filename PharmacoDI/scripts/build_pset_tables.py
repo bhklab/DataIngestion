@@ -2,44 +2,72 @@ import os
 import glob
 import pandas as pd
 import numpy as np
+import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
+file_path = 'pset_tables'  # the directory where you want to store the tables
 
-def build_pset_tables(pset_dict, pset_name):
+
+def build_pset_tables(pset_dict, pset_name, file_path):
     """
     Build all tables for this....
     """
+    pset_dfs = {}
 
-    datasets_df = pd.DataFrame({'id': pset_name, 'name': pset_name})
+    # Build all tables
+    pset_dfs['dataset'] = pd.DataFrame({'id': pset_name, 'name': pset_name})
 
     tissues_df, drugs_df, genes_df = build_primary_tables(
         pset_dict)
+    pset_dfs.update({'tissue': tissues_df, 'drug': drugs_df, 'gene': genes_df})
 
-    cells_df = build_cells_df(pset_dict, tissues_df)
-    targets_df = build_targets_df(pset_dict, genes_df)
-    drug_annotations_df, gene_annotations_df = build_annotation_dfs(pset_dict)
+    gene_annotations_df, drug_annotations_df = build_annotation_dfs(pset_dict)
+    pset_dfs.update({'gene_annotations': gene_annotations_df,
+                     'drug_annotations': drug_annotations_df})
 
-    datasets_cells_df = build_datasets_cells_df(
-        pset_dict, cells_df, pset_name)
-    mol_cels_df = build_mol_cells_df(pset_dict, datasets_cells_df)
+    pset_dfs['cell'] = build_cells_df(pset_dict, tissues_df)
+    pset_dfs['target'] = build_targets_df(pset_dict, genes_df)
 
-    clinical_trials_df = build_clinical_trials_df(pset_dict, drugs_df)
-    experiments_df = build_experiments_df(
-        pset_dict, cells_df, pset_name)
-    drug_targets_df = build_drug_targets_df(pset_dict, drugs_df, targets_df)
+    pset_dfs['datasets_cells'] = build_datasets_cells_df(
+        pset_dict, pset_dfs['cell'], pset_name)
+    pset_dfs['experiments'] = build_experiments_df(
+        pset_dict, pset_dfs['cell'], pset_name)
 
-    dose_responses_df = build_dose_response_df(pset_dict, experiments_df)
-    profiles_df = build_profiles_df(pset_dict)
-    dataset_statistics_df = build_dataset_stats_df(pset_dict, datasets_df)
+    pset_dfs['mol_cells'] = build_mol_cells_df(
+        pset_dict, pset_dfs['datasets_cells'])
+    pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, drugs_df)
+    pset_dfs['drug_targets'] = build_drug_targets_df(pset_dict)
 
-    gene_drugs_df = build_gene_drugs_df()
+    pset_dfs['dose_responses'] = build_dose_response_df(
+        pset_dict, pset_dfs['experiments'])
+    pset_dfs['profiles'] = build_profiles_df(pset_dict)
+    pset_dfs['dataset_statistics'] = build_dataset_stats_df(
+        pset_dict, pset_name)
 
-    # TODO - how to not repeat the same code over and over? how to iterate through all tables
-    tissues_df.to_csv(f'{pset_name}_Tissues.csv.gz', header=True,
-                      index=False, compression='infer')
+    pset_dfs['gene_drugs'] = build_gene_drugs_df()
+
+    # Write all tables to csv
+    write_dfs_to_csv(pset_dfs, pset_name, file_path)
+
+
+def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
+    """
+    @param pset_dfs: [`dict`] A dictionary of all the pset DataFrames you want to write to csv
+    @param pset_name: [`string`] The name of the pset, used to create a subdirectory for the tables in this pset
+    @param df_dir: [`string`] The name of the directory to hold all the tables
+    @return [`None`]
+    """
+    file_path = os.path.join(df_dir, pset_name)
+
+    for df in pset_dfs.keys():
+        # Convert pandas df into dask df
+        dask_df = dd.from_pandas(pset_dfs[df], npartitions=1)
+        # Write dask_df to csv
+        dd.to_csv(dask_df, os.path.join(file_path, f'{pset_name}_{df}.csv'), compression='gzip')
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
+
 
 def build_primary_tables(pset_dict):
     """
@@ -93,10 +121,10 @@ def build_annotation_dfs(pset_dict):
     @param pset_dict: [`dict`]
     @return: [(`DataFrame`, `DataFrame`)]
     """
-    drug_annotations_df = build_drug_annotations_df(pset_dict)
     gene_annotations_df = build_gene_annotations_df(pset_dict)
+    drug_annotations_df = build_drug_annotations_df(pset_dict)
 
-    return drug_annotations_df, gene_annotations_df
+    return gene_annotations_df, drug_annotations_df
 
 
 def build_gene_annotations_df(pset_dict):
@@ -240,7 +268,7 @@ def build_dose_response_df(pset_dict, experiment_df):
     return dose_response_df
 
 
-def build_drug_targets_df(pset_dict, cells_df, target_df):
+def build_drug_targets_df(pset_dict):
     """
     add documentation
     """

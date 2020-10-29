@@ -7,9 +7,5 @@ import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
 
-def write_df_to_csv(pset_df):
-    """
-    add documentation
-    """
 
 
