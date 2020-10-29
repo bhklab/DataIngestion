@@ -9,6 +9,8 @@ file_path = 'pset_tables'  # the directory where you want to store the tables
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
 
+dask_threshold = 1000000 # the maximum number of rows in a pandas df that can be written to a csv in a reasonable amount of time
+
 
 def build_pset_tables(pset_dict, pset_name, file_path):
     """
@@ -61,13 +63,16 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
     """
     file_path = os.path.join(df_dir, pset_name)
 
-    # TODO - Consider splitting into more partitions; test out speed
+    # TODO - test out and get a better dask_threshold if needed
     for df in pset_dfs.keys():
-        # Convert pandas df into dask df
-        dask_df = dd.from_pandas(pset_dfs[df], npartitions=1)
-        # Write dask_df to csv
-        dd.to_csv(dask_df, os.path.join(
-            file_path, f'{pset_name}_{df}.csv'), compression='gzip')
+        if len(df.index) < dask_threshold:
+            # Use pandas to convert df to csv
+            df.to_csv(os.path.join(file_path, df, f'{pset_name}_{df}.csv'), index=False)
+        else:
+            # Convert pandas df into dask df TODO - check how many partitions it makes and adjust if necessary
+            dask_df = dd.from_pandas(pset_dfs[df])
+            # Write dask_df to csv
+            dd.to_csv(dask_df, os.path.join(file_path, df, f'{pset_name}_{df}-*.csv'))
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -84,6 +89,7 @@ def build_primary_tables(pset_dict):
     genes_df = gene_table(pset_dict)
 
     return tissues_df, drugs_df, genes_df
+
 
 
 # TODO - check that you're getting the correct ID
