@@ -98,16 +98,16 @@ def build_pset_tables(pset_dict, pset_name):
     tissues_df, drugs_df, genes_df = build_primary_tables(
         pset_dict)
 
-    cells_df = build_cells_table(pset_dict, tissues_df)
-    targets_df = build_targets_table(pset_dict, genes_df)
+    cells_df = build_cells_df(pset_dict, tissues_df)
+    targets_df = build_targets_df(pset_dict, genes_df)
     drug_annotations_df, gene_annotations_df = build_annotation_dfs(
         pset_dict, drugs_df, genes_df)
 
     datasets_cells_df = build_datasets_cells_df(
         pset_dict, cells_df, datasets_df)
-    mol_cels_df = build_mol_cells_table(pset_dict, cells_df, datasets_df)
+    mol_cels_df = build_mol_cells_df(pset_dict, datasets_cells_df)
 
-    clinical_trials_df = build_clinical_trials_table(pset_dict, drugs_df)
+    clinical_trials_df = build_clinical_trials_df(pset_dict, drugs_df)
     experiments_df = build_experiments_df(
         pset_dict, cells_df, drugs_df, datasets_df, tissues_df)
     drug_targets_df = build_drug_targets_df(pset_dict, drugs_df, targets_df)
@@ -169,7 +169,7 @@ def drug_table(pset_dict):
 
 # --- OTHER TABLES -----------------------------------------------------------------------------
 
-def build_targets_table(pset_dict, genes_df):
+def build_targets_df(pset_dict, genes_df):
     # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
     targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
     targets_df = pd.DataFrame({'id': targets, 'name': targets})
@@ -182,7 +182,7 @@ def build_targets_table(pset_dict, genes_df):
 
 
 # TODO - confirm that you're using the correct cell id
-def build_cells_table(pset_dict, tissues_df):
+def build_cells_df(pset_dict, tissues_df):
     """
     ~ description ~ (build out cell and target dataframes)
 
@@ -227,7 +227,7 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
 
 
-def build_mol_cells_df(pset_dict, datasets_cells_df, dataset_id):
+def build_mol_cells_df(pset_dict, datasets_cells_df):
     # Get the number of times each cellid appears in colData
     num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts()
 
@@ -244,6 +244,9 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, dataset_id):
 
     return mol_cells_df[['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof']]
 
+
+def build_clinical_trials_df(pset_dict, drugs_df):
+    return None
 
 # ---- Build dose response table
 # Chris' implementation
@@ -292,20 +295,14 @@ def build_dose_response_df(pset_dict, experiment_df):
 
 
 def build_drug_targets_df(pset_dict, drug_df, target_df):
-    # TODO - this join works better with DRUG_NAME rather than drugid
+    """
+    add documentation
+    """
     drug_targets_df = pset_dict['drug'][['drugid', 'TARGET']]
-    drug_targets_df = pd.merge(drug_df, drug_targets_df, left_on='name',
-                               right_on='drugid', how='right')[['id', 'TARGET']]
-    # Rename drug id column (FK)
-    drug_targets_df.rename(columns={"id": "drug_id"}, inplace=True)
+    drug_targets_df.columns = ['drug_id', 'target_id']
+    drug_targets_df['id'] = drug_targets_df.index + 1
 
-    # Join with target df
-    drug_targets_df = pd.merge(drug_targets_df, target_df, left_on='TARGET',
-                               right_on='name', how='left')[['drug_id', 'id']]
-    # Rename target id column (FK)
-    drug_targets_df.rename(columns={"id": "target_id"}, inplace=True)
-
-    return drug_targets_df
+    return drug_targets_df[['id', 'drug_id', 'target_id']]
 
 
 def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
@@ -331,6 +328,9 @@ def build_experiment_df(pset_dict, cell_df, drug_df, dataset_id):
     # TODO - get rid of exp_id; check if col order matters
 
     return experiments_df
+
+
+def build_profiles_df(pset_dict):
 
 
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
