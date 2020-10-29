@@ -40,5 +40,5 @@ extractAllMolecProfTables <- function(tSets, outDir=tempdir()) {
     if (!is.list(tSets))
         stop(.context(), 'tSets must be a list of `ToxicoSet` objects!')
 
-    for (tSet in tSets) extractMolecularProfileTable(tSet, outDir=outDir)
+    for (tSet in tSets) extractMolecProfTable(tSet, outDir=outDir)
 }

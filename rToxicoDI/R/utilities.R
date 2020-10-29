@@ -21,6 +21,8 @@
         fileName <- paste(fileName, collapse='_')
         fileName <- gsub('_ldh', 'ldh', fileName)
     }
+    # remove any leading or trailed whitespace
+    fileName <- trimws(fileName)
 
     return(paste(fileName, '.csv'))
 }
