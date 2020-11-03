@@ -5,11 +5,13 @@ import numpy as np
 import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
-file_path = 'procdata'  # the directory where you want to store the tables (processed data)
+# the directory where you want to store the tables (processed data)
+file_path = 'procdata'
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
 
-dask_threshold = 1000000 # the maximum number of rows in a pandas df that can be written to a csv in a reasonable amount of time
+# the maximum number of rows in a pandas df that can be written to a csv in a reasonable amount of time
+dask_threshold = 1000000
 
 
 def build_pset_tables(pset_dict, pset_name, file_path):
@@ -20,37 +22,38 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     """
     pset_dfs = {}
 
-    # Build all tables
+    # Build primary tables
     pset_dfs['dataset'] = pd.DataFrame({'id': pset_name, 'name': pset_name})
-
     tissues_df, drugs_df, genes_df = build_primary_tables(
         pset_dict)
     pset_dfs.update({'tissue': tissues_df, 'drug': drugs_df, 'gene': genes_df})
 
+    # Build annotation tables
     gene_annotations_df, drug_annotations_df = build_annotation_dfs(pset_dict)
     pset_dfs.update({'gene_annotations': gene_annotations_df,
                      'drug_annotations': drug_annotations_df})
 
+    # Build secondary tables
     pset_dfs['cell'] = build_cells_df(pset_dict, tissues_df)
     pset_dfs['target'] = build_targets_df(pset_dict, genes_df)
-
-    pset_dfs['datasets_cells'] = build_datasets_cells_df(
-        pset_dict, pset_dfs['cell'], pset_name)
     pset_dfs['experiments'] = build_experiments_df(
         pset_dict, pset_dfs['cell'], pset_name)
-
-    pset_dfs['mol_cells'] = build_mol_cells_df(
-        pset_dict, pset_dfs['datasets_cells'])
     pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, drugs_df)
     pset_dfs['drug_targets'] = build_drug_targets_df(pset_dict)
-
     pset_dfs['dose_responses'] = build_dose_response_df(
         pset_dict, pset_dfs['experiments'])
     pset_dfs['profiles'] = build_profiles_df(pset_dict)
+
+    # Build gene drugs table
+    pset_dfs['gene_drugs'] = build_gene_drugs_df(gene_sig_file_path, pset_name)
+
+    # Build summary/stats tables
+    pset_dfs['datasets_cells'] = build_datasets_cells_df(
+        pset_dict, pset_dfs['cell'], pset_name)
+    pset_dfs['mol_cells'] = build_mol_cells_df(
+        pset_dict, pset_dfs['datasets_cells'], pset_dfs['gene_drugs'])
     pset_dfs['dataset_statistics'] = build_dataset_stats_df(
         pset_dict, pset_dfs, pset_name)
-
-    pset_dfs['gene_drugs'] = build_gene_drugs_df(gene_sig_file_path, pset_name)
 
     # Write all tables to csv
     write_dfs_to_csv(pset_dfs, pset_name, file_path)
@@ -69,12 +72,14 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
     for df in pset_dfs.keys():
         if len(df.index) < dask_threshold:
             # Use pandas to convert df to csv
-            df.to_csv(os.path.join(file_path, df, f'{pset_name}_{df}.csv'), index=False)
+            df.to_csv(os.path.join(file_path, df,
+                                   f'{pset_name}_{df}.csv'), index=False)
         else:
             # Convert pandas df into dask df TODO - check how many partitions it makes and adjust if necessary
             dask_df = dd.from_pandas(pset_dfs[df])
             # Write dask_df to csv
-            dd.to_csv(dask_df, os.path.join(file_path, df, f'{pset_name}_{df}-*.csv'))
+            dd.to_csv(dask_df, os.path.join(
+                file_path, df, f'{pset_name}_{df}-*.csv'))
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -436,12 +441,14 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
         dataset and the datset name/id.
     @return: [`DataFrame`] 
     """
-    mol_cells_df = pd.DataFrame(columns=['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof'])
+    mol_cells_df = pd.DataFrame(
+        columns=['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof'])
     molecularTypes = pd.unique(gene_drugs_df['mDataType'])
 
     for mDataType in molecularTypes:
         # Get the number of times each cellid appears in colData for that mDataType
-        num_profiles = pset_dict['molecularProfiles'][mDataType]['colData']['cellid'].value_counts()
+        num_profiles = pset_dict['molecularProfiles'][mDataType]['colData']['cellid'].value_counts(
+        )
 
         # Join with datasets cells on cellid
         df = pd.merge(datasets_cells_df, num_profiles,
@@ -452,9 +459,9 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
 
         # Set mDataType column to the current molecular type
         df['mDataType'] = mDataType
-    
+
         # Append to mol_cells_df
-        mol_cells_df = mol_cells_df.append(df)  
+        mol_cells_df = mol_cells_df.append(df)
 
     # Replace any NaN in the num_profiles column with 0
     mask = mol_cells_df.query('num_prof.isna()').index
