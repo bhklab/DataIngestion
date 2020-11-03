@@ -426,35 +426,41 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
 
 
-def build_mol_cells_df(pset_dict, experiments_df, gene_drugs_df):
+def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
     """
-    Builds a table that summarizes which molecular data types are available in this
-    dataset for each cell line, and the number of profiles of each molecular data type.
+    Builds a table that summarizes which molecular data types have calculated stats in
+    this dataset for each cell line, and the number of profiles of each molecular data type.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
     @param datasets_cells_df: [`DataFrame`] A table containing all the cells in this  
         dataset and the datset name/id.
     @return: [`DataFrame`] 
     """
+    mol_cells_df = pd.DataFrame(columns=['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof'])
+    molecularTypes = pd.unique(gene_drugs_df['mDataType'])
 
-    gene_drugs_df.groupby(['class', 'order'])
+    for mDataType in molecularTypes:
+        # Get the number of times each cellid appears in colData for that mDataType
+        num_profiles = pset_dict['molecularProfiles'][mDataType]['colData']['cellid'].value_counts()
 
-    # Get the number of times each cellid appears in colData
-    num_profiles = pset_dict['molecularProfiles']['rna']['colData']['cellid'].value_counts()
+        # Join with datasets cells on cellid
+        df = pd.merge(datasets_cells_df, num_profiles,
+                      left_on='cell_id', right_on=num_profiles.index, how='left')
 
-    # Join with datasets cells on cellid
-    mol_cells_df = pd.merge(datasets_cells_df, num_profiles,
-                            left_on='cell_id', right_on=num_profiles.index, how='left')
-    mol_cells_df.rename(columns={'cellid': 'num_prof'}, inplace=True)
+        # Rename num_profiles column
+        df.rename(columns={'cellid': 'num_prof'}, inplace=True)
+
+        # Set mDataType column to the current molecular type
+        df['mDataType'] = mDataType
+    
+        # Append to mol_cells_df
+        mol_cells_df = mol_cells_df.append(df)  
 
     # Replace any NaN in the num_profiles column with 0
     mask = mol_cells_df.query('num_prof.isna()').index
     mol_cells_df.loc[mask, 'num_prof'] = 0
 
-    # Set mDataType TODO - find mDataType???
-    mol_cells_df['mDataType'] = np.nan
-
-    return mol_cells_df[['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof']]
+    return mol_cells_df
 
 
 def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
