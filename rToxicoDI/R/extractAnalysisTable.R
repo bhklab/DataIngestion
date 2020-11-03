@@ -20,9 +20,9 @@ extractAnalysisTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     # rename columns
     setnames(analysis,
-        old=c('gene', 'compound', 'cell'),
-        new=c('gene_id', 'compound_id', 'cell_id'),
-        skip_abset=TRUE)
+        old=c('gene', 'compound', 'cell', 'duration'),
+        new=c('gene_id', 'compound_id', 'cell_id', 'time'),
+        skip_absent=TRUE)
 
     fileName <- .preprocessFileName(fileName)
 
