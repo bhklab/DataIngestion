@@ -27,6 +27,7 @@
     return(paste(fileName, '.csv'))
 }
 
+## FIXME:: Move this into CoreGx
 #' Return the name of the function and the name of the package that function
 #'   is in when called within an R function.
 #'
