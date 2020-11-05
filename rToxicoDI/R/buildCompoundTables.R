@@ -26,23 +26,29 @@ buildCompoundTables <- function(path='procdata',
 
     # load the compound table for each tSet
     files <- list.files(file.path(path, 'compound'), pattern='csv', full.names=TRUE)
-    compoundTables <- lapply(files, fread, sep='\n')
+    compoundTables <- lapply(files, fread, sep='\n', quote=FALSE)  # disable quoting input
     names(compoundTables) <-
         trimws(gsub('^.*/|.csv$', '', files))
 
     # load annotations file
     annotations <- fread(annotPath)
+    annotations <- annotations[, No. := NULL]  # delete number column
+    annotations <- unique(annotations)
     renameMap <- na.omit(annotColMap)
     setnames(annotations, renameMap, names(renameMap), skip_absent=TRUE)
 
     # build compound annotation table
     compoundTable <- unique(rbindlist(compoundTables))
+    compoundTable[, name := gsub('\\\"', '', name)]
+    compoundTable
+
     setkeyv(compoundTable, 'name')
     setkeyv(annotations, 'name')
-    compound <- compoundTable[annotations]
+    compound <- merge.data.table(compoundTable, annotations, all.x=TRUE,
+        sort=FALSE)
 
     # ensure nothing weird happened in the join
-    if (setequal(compound$name, compoundTable$name))
+    if (!setequal(compound$name, compoundTable$name))
         stop(.context(), 'the compound table has more or less compound after
             joining with the annotations table. Something has gone wrong!')
 
@@ -117,5 +123,17 @@ buildCompoundTables <- function(path='procdata',
 
 if (sys.nframe() == 0) {
     library(data.table)
+    path='procdata'
+    annotPath='metadata/Drug_annotations_V2.1.csv'
+    moreAnnotPath='metadata/labels_toVerify.csv'
+    outDir='latest'
+    annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
+    drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
+    class_in_vivo='Classif. in vivo', class_in_vitro='Classif. in vitro',
+    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid',
+    NTP=NA, IARC=NA, DILI_status=NA)
+
+
+
     buildCompoundTables()
 }

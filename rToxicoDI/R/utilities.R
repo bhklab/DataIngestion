@@ -60,3 +60,9 @@
 }
 #' @noRd
 .context <- .getExecutionContext
+
+#' @import CoreGx
+.errorMsg <- CoreGx::.errorMsg
+
+#' @import CoreGx
+.warnMsg <- CoreGx::.warnMsg
