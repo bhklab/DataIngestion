@@ -16,7 +16,6 @@ buildCompoundTables <- function(path='procdata', outDir='latest', ...) {
     names(sampleTables) <-
         trimws(gsub('^.*/|.csv$', '', files))
 
-    # -- build cell table
 
 
 
