@@ -39,32 +39,32 @@ buildCompoundTables <- function(path='procdata',
     compoundTable <- unique(rbindlist(compoundTables))
     setkeyv(compoundTable, 'name')
     setkeyv(annotations, 'name')
-    compounds <- compoundTable[annotations]
+    compound <- compoundTable[annotations]
 
     # ensure nothing weird happened in the join
-    if (setequal(compounds$name, compoundTable$name))
-        stop(.context(), 'the compounds table has more or less compounds after
+    if (setequal(compound$name, compoundTable$name))
+        stop(.context(), 'the compound table has more or less compound after
             joining with the annotations table. Something has gone wrong!')
 
     # build compound tables
-    compounds[, id := seq_len(.N)]
+    compound[, id := seq_len(.N)]
     missingAnnotCols <- annotColMap[is.na(annotColMap)]
     assignNAstring <- deparse(dput(missingAnnotCols), width.cutoff=500L)
     assignNAstring <- gsub('^c\\(', '`:=`(', assignNAstring)
-    compounds[, eval(str2lang(assignNAstring))]
+    compound[, eval(str2lang(assignNAstring))]
 
     annotCols <- c(setdiff(names(annotColMap), c('name', 'compound_id')), 'id')
-    compound_annotations <- compounds[, ..annotCols]
-    compounds <- compounds[, .(id, name)]
+    compound_annotations <- compound[, ..annotCols]
+    compound <- compound[, .(id, name)]
 
     # add additional annotation data
     moreAnnots <- fread(moreAnnotPath)
     colnames(moreAnnots) <- gsub( ' ', '_',
         colnames(moreAnnots))
     setkeyv(moreAnnots, 'BHK.unique.id')
-    setkeyv(compounds, 'name')
-    moreAnnots[compounds, id := i.id]
-    moreAnnots <- moreAnnots[compounds$id]
+    setkeyv(compound, 'name')
+    moreAnnots[compound, id := i.id]
+    moreAnnots <- moreAnnots[compound$id]
     setkeyv(moreAnnots, 'id')
     setkeyv(compound_annotations, 'id')
     sharedCols <- intersect(colnames(compound_annotations), colnames(moreAnnots))
@@ -87,7 +87,7 @@ buildCompoundTables <- function(path='procdata',
     inColNames <- names(annotColMap) %in% colnames(compound_annotations)
     setcolorder(compound_annotations, names(annotColMap)[inColNames])
 
-    # build compounds datasets tables
+    # build compound datasets tables
     compound_dataset <- mapply(cbind, compoundTables, names(compoundTables),
         SIMPLIFY=FALSE)
     compound_dataset <- rbindlist(compound_dataset)
@@ -105,12 +105,12 @@ buildCompoundTables <- function(path='procdata',
     setkeyv(dataset, 'name')
     setkeyv(compound_dataset, 'dataset')
     compound_dataset[dataset, `:=`(dataset_id=i.id, compound_uid=NA)]
-    setkeyv(compounds, 'name')
+    setkeyv(compound, 'name')
     setkeyv(compound_dataset, 'name')
-    compound_dataset <- merge(compound_dataset, compounds)[, .(id, dataset_id, compound_uid)]
+    compound_dataset <- merge(compound_dataset, compound)[, .(id, dataset_id, compound_uid)]
     setnames(compound_dataset, 'id', 'compound_id')
 
-    for (table in c('compounds', 'compound_annotations', 'compound_dataset', 'dataset')) {
+    for (table in c('compound', 'compound_annotations', 'compound_dataset', 'dataset')) {
         fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
     }
 }

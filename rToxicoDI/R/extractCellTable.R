@@ -20,6 +20,9 @@ extractCellTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     cellsWithMolProf <- unique(phenoInfo(tSet, 'rna')$cellid)
     cellInfo <- as.data.table(cellInfo(tSet))[cellid %in% cellsWithMolProf,
         .(cellid, tissueid)]
+    ## FIXME:: Need to add species to cellInfo in all tSets
+    cellInfo$species <- if (length(cellInfo$species) > 0) cellInfo$species else
+        'R.norvegicus'
 
     # rename columns by reference
     setnames(cellInfo, c('cellid', 'tissueid'), c('name', 'tissue_id'))

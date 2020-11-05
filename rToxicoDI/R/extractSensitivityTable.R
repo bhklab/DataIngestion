@@ -63,5 +63,5 @@ extractAllSensitivityTables <- function(tSets, outDir=tempdir()) {
     if (!is.list(tSets))
         stop(.context(), 'tSets must be a list ToxicoSet objects!')
 
-    for (tSet in tSets) extractSensitivityProfileTable(tSet, outDir=outDir)
+    for (tSet in tSets) extractSensitivityTable(tSet, outDir=outDir)
 }
