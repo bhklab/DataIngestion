@@ -24,6 +24,7 @@ Collate:
     'buildCompoundTables.R'
     'buildMolecProfTables.R'
     'buildSampleTables.R'
+    'buildSensitivityTables.R'
     'extractAllTables.R'
     'extractAnalysisTable.R'
     'extractCompoundTable.R'
