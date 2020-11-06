@@ -22,6 +22,7 @@ RoxygenNote: 7.1.1
 Collate: 
     'buildCellTables.R'
     'buildCompoundTables.R'
+    'buildMolecProfTables.R'
     'buildSampleTables.R'
     'extractAllTables.R'
     'extractAnalysisTable.R'
