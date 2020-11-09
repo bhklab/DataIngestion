@@ -44,5 +44,4 @@ if (sys.nframe() == 0) {
     path='procdata'
     outDir='latest'
     sample='sample'
-
 }

@@ -11,7 +11,7 @@ extractAllTables <- function(path='tSets',
     message('Configuring file paths...')
     tSetPaths <- list.files(path, pattern, full.names=TRUE)
     tables <- c('compound', 'gene', 'sample', 'molecProf', 'analysis',
-        'sensitivity', 'cell')
+        'sensitivity', 'cell', 'pathway')
     outDirs <- as.list(file.path(outDir, tables))
     names(outDirs) <- tables
 
@@ -48,6 +48,10 @@ extractAllTables <- function(path='tSets',
     # cell
     message("Extracting cell tables to ", outDirs$cell)
     extractAllCellTables(tSets, outDirs$cell)
+
+    # pathway
+    message("Extracting pathway table to ", outDirs$pathway)
+    extractPathwayTable(outDir=outDirs$pathway)
 }
 
 if (sys.nframe() == 0) {
