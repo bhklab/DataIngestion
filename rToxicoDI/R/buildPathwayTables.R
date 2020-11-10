@@ -12,10 +12,23 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
 
     # -- load the compound table for each tSet
-    files <- list.files(file.path(path, 'sensitivity'), pattern='csv', full.names=TRUE)
-    sensitivityTables <- lapply(files, fread)
-    names(sensitivityTables) <-
-        trimws(gsub('^.*/|.csv$', '', files))
+    files <- list.files(file.path(path, 'pathway'), pattern='csv',
+        full.names=TRUE)
+
+    # --
+    whichPathwayPath <- grepl('pathway.csv', files)
+    pathway <- fread(files[whichPathwayPath])
+    files <- files[!whichPathwayPath]
+
+    # --
+    pathwayStats <- lapply(files, fread)
+    names(pathwayStats) <- gsub( '.*/|.csv', '', files)
 
 
+}
+
+if (sys.nframe() == 0) {
+    library(data.table)
+    library()
+    path='procdata'
 }
