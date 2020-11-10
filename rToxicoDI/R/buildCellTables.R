@@ -58,13 +58,13 @@ buildCellTables <- function(path='procdata', outDir='latest', ...) {
     setkeyv(species, 'dataset_id')
 
     # -- cell
-    cell[, id := seq_len(.N)]
+    cell[, id := .GRP, by=name]
 
     # make join table
-    dataset_cell <- cell[, .(id, dataset)]
+    dataset_cell <- unique(cell[, .(id, dataset)])
     setnames(dataset_cell, c('id', 'dataset'), c('cell_id', 'dataset_id'))
 
-    cell <- cell[, .(id, name, tissue_id)]
+    cell <- unique(cell[, .(id, name, tissue_id)])
     setcolorder(cell, c('id', 'tissue_id', 'name'))
     setkeyv(cell, 'id')
 
