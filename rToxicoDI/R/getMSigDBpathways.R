@@ -13,7 +13,6 @@
 getMSigDBPathways <- function(species=c('Homo sapiens', 'Rattus norvegicus'),
     all=TRUE)
 {
-
     .getMSigAsDT <- function(...) as.data.table(msigdbr(...))
 
     if (all) {
