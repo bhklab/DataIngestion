@@ -7,6 +7,7 @@ import dask.dataframe as dd
 pset_name = 'GDSC_v1'
 # the directory where you want to store the tables (processed data)
 file_path = 'procdata'
+metadata_path = os.path.join("data", "metadata", "Annotations")
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
 
@@ -34,7 +35,6 @@ def build_pset_tables(pset_dict, pset_name, file_path):
 
     # Build secondary tables - TODO simplify this further?
     pset_dfs['cell'] = build_cells_df(pset_dict, pset_dfs['tissue'])
-    pset_dfs['target'] = build_targets_df(pset_dict, pset_dfs['gene'])
     pset_dfs['experiments'] = build_experiments_df(
         pset_dict, pset_dfs['cell'], pset_name)
     pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug'])
@@ -185,23 +185,22 @@ def build_drug_annotations_df(pset_dict):
 
 # --- OTHER TABLES ----------------------------------------------------------------------------
 
-def build_targets_df(pset_dict, genes_df):
+def load_drugbank_mappings(gene_file, file_path):
     """
-    Build a table mapping all targets in a dataset to their gene.
-
-    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @param genes_df: [`DataFrame`] A table of all genes in the PSet
-    @return: [`DataFrame`] A table with all target-gene mappings
+    Read all Drugbank gene ID mappings from the directory file_path.
+    
+    @param gene_file: [`string`] The name of the Drugbank file
+    @param file_path: [`string`] The directory that holds all gene mapping files
+    @return: [`DataFrame`] A dataframe containing all Drugbank gene mappings
     """
-    # Make the targets df -- NEED TO ADD GENE ID TODO - how to relate target to genes??
-    targets = pd.Series(pd.unique(pset_dict['drug']['TARGET']))
-    targets_df = pd.DataFrame({'id': targets, 'name': targets})
-    targets_df['gene_id'] = np.nan  # TODO - fill in
-    # target_df = pd.merge(pset_dict['drug'][['TARGET']], gene_df)[
-    #     ['TARGET', 'id']]
-    # target_df.columns = ['name', 'gene_id']
-
-    return targets_df
+    # Find correct CSV file
+    drugbank_file = glob.glob(os.path.join(file_path, gene_file))[0]
+    if drugbank_file is None:
+        raise ValueError(
+            f'No Drugbank file named {gene_file} could be found in {file_path}')
+    
+    # Read csv file and return df
+    return pd.read_csv(drugbank_file)
 
 
 # TODO - confirm that you're using the correct cell id
@@ -358,7 +357,7 @@ def build_profiles_df(pset_dict):
 def read_gene_sig(pset_name, file_path):
     """
     Read all gene signatures for a PSet (to be used in gene_drugs table) from the directory file_path.
-
+    
     @param pset_name: [`string`] The name of the PSet
     @param file_path: [`string`] The directory that holds all gene signature files
     @return: [`DataFrame`] A dataframe containing all gene signatures for the PSet
@@ -368,7 +367,7 @@ def read_gene_sig(pset_name, file_path):
     if pset_file is None:
         raise ValueError(
             f'No PSet gene signatures file named {pset_name} could be found in {file_path}')
-
+    
     # Read csv file and return df
     return pd.read_csv(pset_file)
 
