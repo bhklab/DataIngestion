@@ -4,10 +4,11 @@ import glob
 import numpy as np
 import pandas as pd
 
-metadata_path = os.path.join('data', 'metadata', 'Annotations')
+metadata_path = os.path.join('data', 'metadata')
+annotations_path = os.path.join(metadata_path, 'Annotations')
 
 
-def get_annotations(file_name, metadata_path):
+def get_metadata(file_name, metadata_path):
     # Find correct metadata annotations CSV file
     annotations_file = glob.glob(
         os.path.join(metadata_path, file_name))[0]
@@ -27,9 +28,9 @@ tissue_syns_file = "cell_annotation_all.csv"
 
 
 # TODO - 3 rows; 954 rows
-def cell_synonyms(cells_df, cell_syns_file, metadata_path):
+def cell_synonyms(cells_df, cell_syns_file, annotations_path):
     # Get metadata file
-    cell_names_df = get_annotations(cell_syns_file, metadata_path)
+    cell_names_df = get_metadata(cell_syns_file, annotations_path)
 
     # Find all columns relevant to cellid
     pattern = re.compile('cellid')
@@ -50,9 +51,9 @@ def cell_synonyms(cells_df, cell_syns_file, metadata_path):
     return cell_synonyms[['id', 'cell_id', 'dataset_id', 'cell_name']]
 
 
-def tissue_synonyms(tissues_df, tissue_syns_file, metadata_path):
+def tissue_synonyms(tissues_df, tissue_syns_file, annotations_path):
     # Get metadata file
-    tissues_metadata = get_annotations(tissue_syns_file, metadata_path)
+    tissues_metadata = get_metadata(tissue_syns_file, annotations_path)
 
     # Find all columns relevant to tissueid
     pattern = re.compile('tissueid')
@@ -73,9 +74,9 @@ def tissue_synonyms(tissues_df, tissue_syns_file, metadata_path):
     return tissue_synonyms[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
 
 
-def drug_synonyms(drugs_df, drug_syns_file, metadata_path):
+def drug_synonyms(drugs_df, drug_syns_file, annotations_path):
     # Get metadata file
-    drugs_metadata = get_annotations(drug_syns_file, metadata_path)
+    drugs_metadata = get_metadata(drug_syns_file, annotations_path)
 
     # Find all columns relevant to drugid
     # Right now only FDA col is dropped, but may be more metadata in the future
