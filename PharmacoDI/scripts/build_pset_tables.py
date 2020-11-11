@@ -38,7 +38,6 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     pset_dfs['experiments'] = build_experiments_df(
         pset_dict, pset_dfs['cell'], pset_name)
     pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug'])
-    pset_dfs['drug_targets'] = build_drug_targets_df(pset_dict)
     pset_dfs['dose_responses'] = build_dose_response_df(
         pset_dict, pset_dfs['experiments'])
     pset_dfs['profiles'] = build_profiles_df(pset_dict)
@@ -280,20 +279,6 @@ def build_dose_response_df(pset_dict, experiment_df):
     #dose_response_df.index = dose_response_df.index + 1
 
     return dose_response_df
-
-
-def build_drug_targets_df(pset_dict):
-    """
-    Build a join table that maps all drugs to their targets.
-
-    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @return: [`DataFrame`] A join table with all drug-target mappings
-    """
-    drug_targets_df = pset_dict['drug'][['drugid', 'TARGET']]
-    drug_targets_df.columns = ['drug_id', 'target_id']
-    drug_targets_df['id'] = drug_targets_df.index + 1
-
-    return drug_targets_df[['id', 'drug_id', 'target_id']]
 
 
 def build_experiments_df(pset_dict, cells_df, dataset_id):
