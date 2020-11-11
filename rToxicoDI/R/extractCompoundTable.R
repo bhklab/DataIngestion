@@ -22,7 +22,7 @@ extractCompoundTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
     fileName <- .preprocessFileName(fileName)
 
-    fwrite(compoundInfo, file=file.path(outDir, fileName))
+    fwrite(compoundInfo, file=file.path(outDir, fileName), qmethod='escape')
 }
 
 

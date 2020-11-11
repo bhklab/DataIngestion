@@ -37,10 +37,10 @@ extractSensitivityTable <- function(tSet, outDir=tempdir(), fileName=name(tSet))
     # join the sensitivity annotations to the data
     setkeyv(sensProfile, c('rownames', 'dose'))
     setkeyv(sensInfo, c('rownames', 'dose'))
-    sensProfile <- sensInfo[sensProfile, !'rownames']
+    sensProfile <- sensInfo[sensProfile][, !'rownames']
     setnames(sensProfile,
         old=c('cellid', 'drugid', 'duration_h'),
-        new=c('cell_id', 'compund_id', 'time'),
+        new=c('cell_id', 'compound_id', 'time'),
         skip_absent=TRUE)
 
     fileName <- .preprocessFileName(fileName)
@@ -63,5 +63,5 @@ extractAllSensitivityTables <- function(tSets, outDir=tempdir()) {
     if (!is.list(tSets))
         stop(.context(), 'tSets must be a list ToxicoSet objects!')
 
-    for (tSet in tSets) extractSensitivityProfileTable(tSet, outDir=outDir)
+    for (tSet in tSets) extractSensitivityTable(tSet, outDir=outDir)
 }

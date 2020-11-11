@@ -13,49 +13,87 @@
 #' @import data.table
 #' @export
 buildCompoundTables <- function(path='procdata',
-    annotPath='metadata/Drug_annotations_V2.1.csv', outDir='latest', ...,
+    annotPath='metadata/Drug_annotations_V2.1.csv',
+    moreAnnotPath='metadata/labels_toVerify.csv', outDir='latest', ...,
     annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
     drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
     class_in_vivo='Classif. in vivo', class_in_vitro='Classif. in vitro',
-    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid'))
+    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid',
+    NTP=NA, IARC=NA, DILI_status=NA))
 {
     # ensure the output directory exists
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
 
     # load the compound table for each tSet
     files <- list.files(file.path(path, 'compound'), pattern='csv', full.names=TRUE)
-    compoundTables <- lapply(files, fread, sep='\n')
+    compoundTables <- lapply(files, fread, sep='\n', quote=FALSE)  # disable quoting input
     names(compoundTables) <-
         trimws(gsub('^.*/|.csv$', '', files))
 
     # load annotations file
     annotations <- fread(annotPath)
+    annotations <- annotations[, No. := NULL]  # delete number column
+    annotations <- unique(annotations)
     renameMap <- na.omit(annotColMap)
     setnames(annotations, renameMap, names(renameMap), skip_absent=TRUE)
 
     # build compound annotation table
     compoundTable <- unique(rbindlist(compoundTables))
+    compoundTable[, name := gsub('\\\"', '', name)]
+    compoundTable
+
     setkeyv(compoundTable, 'name')
     setkeyv(annotations, 'name')
-    compounds <- compoundTable[annotations]
+    compound <- merge.data.table(compoundTable, annotations, all.x=TRUE,
+        sort=FALSE)
 
     # ensure nothing weird happened in the join
-    if (setequal(compounds$name, compoundTable$name))
-        stop(.context(), 'the compounds table has more or less compounds after
+    if (!setequal(compound$name, compoundTable$name))
+        stop(.context(), 'the compound table has more or less compound after
             joining with the annotations table. Something has gone wrong!')
 
     # build compound tables
-    compounds[, id := seq_len(.N)]
+    compound[, id := seq_len(.N)]
     missingAnnotCols <- annotColMap[is.na(annotColMap)]
     assignNAstring <- deparse(dput(missingAnnotCols), width.cutoff=500L)
     assignNAstring <- gsub('^c\\(', '`:=`(', assignNAstring)
-    compounds[, eval(str2lang(assignNAstring))]
+    compound[, eval(str2lang(assignNAstring))]
 
-    annotCols <- c(setdiff(names(annotColMap), 'name'), 'id')
-    compound_annotations <- compounds[, ..annotCols]
-    compounds <- compounds[, .(id, name)]
+    annotCols <- c(setdiff(names(annotColMap), c('name', 'compound_id')), 'id')
+    compound_annotations <- compound[, ..annotCols]
+    compound <- compound[, .(id, name)]
 
-    # build compounds datasets tables
+    # add additional annotation data
+    moreAnnots <- fread(moreAnnotPath)
+    colnames(moreAnnots) <- gsub( ' ', '_',
+        colnames(moreAnnots))
+    setkeyv(moreAnnots, 'BHK.unique.id')
+    setkeyv(compound, 'name')
+    moreAnnots[compound, id := i.id]
+    moreAnnots <- moreAnnots[compound$id]
+    setkeyv(moreAnnots, 'id')
+    setkeyv(compound_annotations, 'id')
+    sharedCols <- intersect(colnames(compound_annotations), colnames(moreAnnots))
+    # substitute in the value of moreAnnots if they are different or
+    #     compound_annotations is NA
+    for (col in sharedCols) {
+        set(compound_annotations, j=col,
+            value=fifelse(
+                test=compound_annotations[[col]] ==
+                    as.character(moreAnnots[[col]]) &
+                        !is.na(compound_annotations[[col]]),
+                yes=compound_annotations[[col]],
+                no=moreAnnots[[col]]))
+        set(compound_annotations, i=which(compound_annotations[[col]] == ""),
+            j=col, value=NA)  # replace "" with NA
+    }
+
+    # subset and sort columns
+    setnames(compound_annotations, 'id', 'compound_id')
+    inColNames <- names(annotColMap) %in% colnames(compound_annotations)
+    setcolorder(compound_annotations, names(annotColMap)[inColNames])
+
+    # build compound datasets tables
     compound_dataset <- mapply(cbind, compoundTables, names(compoundTables),
         SIMPLIFY=FALSE)
     compound_dataset <- rbindlist(compound_dataset)
@@ -67,16 +105,35 @@ buildCompoundTables <- function(path='procdata',
             id=seq_along(names(compoundTables)),
             name=names(compoundTables))
     } else {
-        dataset <- fread(outDir, 'dataset.csv')
+        dataset <- fread(file.path(outDir, 'dataset.csv'))
     }
 
     setkeyv(dataset, 'name')
     setkeyv(compound_dataset, 'dataset')
     compound_dataset[dataset, `:=`(dataset_id=i.id, compound_uid=NA)]
-    setkeyv(compounds, 'name')
+    setkeyv(compound, 'name')
     setkeyv(compound_dataset, 'name')
-    compound_dataset <- merge(compound_dataset, compounds)[, .(id, dataset_id, compound_uid)]
+    compound_dataset <- merge(compound_dataset, compound)[, .(id, dataset_id, compound_uid)]
     setnames(compound_dataset, 'id', 'compound_id')
 
-    for (table in c('compounds', 'compound_annotations'))
+    for (table in c('compound', 'compound_annotations', 'compound_dataset', 'dataset')) {
+        fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
+    }
+}
+
+if (sys.nframe() == 0) {
+    library(data.table)
+    path='procdata'
+    annotPath='metadata/Drug_annotations_V2.1.csv'
+    moreAnnotPath='metadata/labels_toVerify.csv'
+    outDir='latest'
+    annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
+    drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
+    class_in_vivo='Classif. in vivo', class_in_vitro='Classif. in vitro',
+    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid',
+    NTP=NA, IARC=NA, DILI_status=NA)
+
+
+
+    buildCompoundTables()
 }
