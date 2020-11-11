@@ -52,6 +52,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     # -- build gene tables
 
     gene <- rbindlist(geneTables)
+    gene[, gene_id := gsub('_at', '', gene_id)]
     gene$dataset_id <- unlist(mapply(rep, x=names(geneTables),
         times=vapply(geneTables, nrow, numeric(1)), SIMPLIFY=FALSE))
     #rm(geneTables)
@@ -96,6 +97,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     molecProfTables <- lapply(molecProfTables, `[`,  # fix column types
         j=sample_id := as.character(sample_id))
     compound_gene_response <- unique(rbindlist(molecProfTables))
+    compound_gene_response[, gene_id := gsub('_at', '', gene_id)]
     #rm(molecProfTables)
 
     # map ids from other tables
@@ -120,6 +122,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     analysisTables <- mapply(.addColumn, x=analysisTables,
         colName='dataset_id', value=names(analysisTables), SIMPLIFY=FALSE)
     analysis <- rbindlist(analysisTables)
+    analysis[, gene_id := gsub('_at', '', gene_id)]
     #rm(analysisTables)
 
     # map ids from other tables
