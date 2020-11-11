@@ -1,0 +1,193 @@
+"","unique.cellid","old_tissue","new_tissue"
+"1","697","haematopoietic_and_lymphoid_tissue",NA
+"2","A-253","skin","Head and Neck"
+"3","A-388","skin",NA
+"4","A-431","skin","Vulva/Vagina"
+"5","ARH-77","haematopoietic_and_lymphoid_tissue",NA
+"6","BFTC-909","urinary_tract","Kidney"
+"7","C8166","haematopoietic_and_lymphoid_tissue",NA
+"8","CAL-39","vulva","Vulva/Vagina"
+"9","CFPAC-1","pancreas",NA
+"10","CMK","haematopoietic_and_lymphoid_tissue",NA
+"11","COLO 741","large_intestine","Skin"
+"12","EHEB","haematopoietic_and_lymphoid_tissue",NA
+"13","G-401","soft_tissue","Kidney"
+"14","G-402","soft_tissue","Esophagus/Stomach"
+"15","GAK","skin","Vulva/Vagina"
+"16","GT3TKB","stomach","Lung"
+"17","HCE-T","upper_aerodigestive_tract",NA
+"18","HMV-II","skin","Vulva/Vagina"
+"19","HuNS1","haematopoietic_and_lymphoid_tissue",NA
+"20","HuTu 80","small_intestine","Bowel"
+"21","IM-9","haematopoietic_and_lymphoid_tissue",NA
+"22","JAR","testis","Uterus"
+"23","JEG-3","placenta","Uterus"
+"24","KATO III","stomach",NA
+"25","LOX-IMVI","haematopoietic_and_lymphoid_tissue","Skin"
+"26","M14","haematopoietic_and_lymphoid_tissue","Skin"
+"27","Malme-3M","haematopoietic_and_lymphoid_tissue","Skin"
+"28","MC/CAR","haematopoietic_and_lymphoid_tissue",NA
+"29","SK-N-MC-IXC","autonomic_ganglia","Soft Tissue"
+"30","MDA-MB-435","haematopoietic_and_lymphoid_tissue","Skin"
+"31","NCI-H226","lung","Pleura"
+"32","NCI-H630","large_intestine",NA
+"33","NT2-D1","testis","Ovary/Fallopian Tube"
+"34","PD1503a",NA,NA
+"35","RF-48","stomach","CNS/Brain"
+"36","Rh1","soft_tissue","Bone"
+"37","RPMI-6666","haematopoietic_and_lymphoid_tissue",NA
+"38","RTSG","ovary","Uterus"
+"39","S-117","soft_tissue","Thyroid"
+"40","SK-MEL-28","haematopoietic_and_lymphoid_tissue","Skin"
+"41","SK-PN-DW","bone","CNS/Brain"
+"42","SK-UT-1","soft_tissue","Uterus"
+"43","SW626","ovary","Bowel"
+"44","SW954","vulva","Vulva/Vagina"
+"45","SW962","vulva","Vulva/Vagina"
+"46","TCO-1 [Human cervical carcinoma]","thyroid","Cervix"
+"47","UACC-257","haematopoietic_and_lymphoid_tissue","Skin"
+"48","UACC-62","haematopoietic_and_lymphoid_tissue","Skin"
+"49","VA-ES-BJ","bone","Soft Tissue"
+"50","AZ-521","stomach","Bowel"
+"51","BGC-823","stomach","Cervix"
+"52","BJ1-hTERT","skin",NA
+"53","CAL-78","soft_tissue","Bone"
+"54","CMK-11-5","haematopoietic_and_lymphoid_tissue",NA
+"55","CMK-86","haematopoietic_and_lymphoid_tissue",NA
+"56","COLO 677","lung","Lymphoid"
+"57","GLC-82","lung","Cervix"
+"58","GR-M","skin","Pancreas"
+"59","HARA [Human squamous cell lung carcinoma]","breast","Lung"
+"60","HEK TE","kidney",NA
+"61","HK-2 [Human kidney]","kidney",NA
+"62","HMEL","breast",NA
+"63","Hs 840.T","upper_aerodigestive_tract",NA
+"64","HTK-","haematopoietic_and_lymphoid_tissue","Bone"
+"65","KE-97","haematopoietic_and_lymphoid_tissue",NA
+"66","KMS-21-BM","haematopoietic_and_lymphoid_tissue",NA
+"67","ML-1 [Human thyroid carcinoma]","haematopoietic_and_lymphoid_tissue","Thyroid"
+"68","NCI-H684","liver","Bowel"
+"69","NCI-H854","lung","Bowel"
+"70","OE21","upper_aerodigestive_tract","Esophagus/Stomach"
+"71","OELE","ovary",NA
+"72","PE/CA-PJ34 (clone C12)","upper_aerodigestive_tract","Penis"
+"73","PrEC LH","prostate",NA
+"74","SALE","lung",NA
+"75","SF767","central_nervous_system","Cervix"
+"76","SF8657","skin",NA
+"77","SK-N-MC","bone","Soft Tissue"
+"78","SLR20","kidney","Bladder/Urinary Tract"
+"79","SW579","upper_aerodigestive_tract","Thyroid"
+"80","TC-32","bone","CNS/Brain"
+"81","TIG-3 TD","lung",NA
+"82","1A2","haematopoietic_and_lymphoid_tissue",NA
+"83","A7","skin",NA
+"84","SK-N-BE(2)-C","brain","Peripheral Nervous System"
+"85","BeWo","placenta","Uterus"
+"86","CA-HPV-10","prostate",NA
+"87","COLO 320DM","lung","Bowel"
+"88","MCF-10A","breast",NA
+"89","MT-3 [Human contaminated breast cancer]","breast","Bowel"
+"90","MV-522","lung","Bowel"
+"91","RWPE-1","prostate",NA
+"92","SCC-12","head_and_neck","Skin"
+"93","SCC-13","head_and_neck","Skin"
+"94","TE 381.T","sarcoma","Soft Tissue"
+"95","WI-38","lung",NA
+"96","184A1","breast",NA
+"97","184B5","breast",NA
+"98","MCF-12A","breast",NA
+"99","MCF-10F","breast",NA
+"100","HBL-100","breast",NA
+"101","HCC1143 BL","breast",NA
+"102","HCC38 BL","breast",NA
+"103","HCC1482","uterus","Cervix"
+"104","HEp-2","upper_aerodigestive_tract","Cervix"
+"105","HCC60","ovary","Lung"
+"106","PEO1","ovary",NA
+"107","RERF-LC-OK","lung","CNS/Brain"
+"108","MCF10DCIS.com","breast",NA
+"109","NTERA-2","testis","Ovary/Fallopian Tube"
+"110","SW527","breast","Bowel"
+"111","NB(TU)1","kidney","Peripheral Nervous System"
+"112","IOSE-75-16SV40","ovary",NA
+"113","UWB1.289","ovary",NA
+"114","NCI-H2810","lung","Pleura"
+"115","NCI-H2373","lung","Pleura"
+"116","NCI-H2731","lung","Pleura"
+"117","IOSE-364","ovary",NA
+"118","Hs 633.T","misc","Soft Tissue"
+"119","PWR-1E","prostate",NA
+"120","CHSA8926","other","Bone"
+"121","NCC021","other","Kidney"
+"122","IOSE-523","ovary",NA
+"123","EMC-BAC-2","oesophagus","Lung"
+"124","WIL2 NS","haematopoietic_and_lymphoid_tissue",NA
+"125","SiSo","endometrium","Cervix"
+"126","NCI-H2591","lung","Pleura"
+"127","NCI-H513","pleura","Lung"
+"128","EMC-BAC-1","oesophagus","Lung"
+"129","IOSE-397","ovary",NA
+"130","UE6E7T-3","haematopoietic_and_lymphoid_tissue",NA
+"131","NCI-H2595","lung","Pleura"
+"132","RWPE2-W99","prostate",NA
+"133","TASK1","other","Soft Tissue"
+"134","K2 [Human melanoma]","thyroid","Skin"
+"135","Hs 445","haematopoietic_and_lymphoid_tissue",NA
+"136","JHU-028","upper_aerodigestive_tract","Lung"
+"137","SKN","soft_tissue","Uterus"
+"138","STS-0421","soft_tissue","Esophagus/Stomach"
+"139","MY-M12","haematopoietic_and_lymphoid_tissue",NA
+"140","U-CH2","placenta","Bone"
+"141","HCC812","breast",NA
+"142","BT 145",NA,"CNS/Brain"
+"143","BT 112",NA,"CNS/Brain"
+"144","BT 164",NA,"CNS/Brain"
+"145","BT 224",NA,"CNS/Brain"
+"146","H-STS",NA,"Bowel"
+"147","KRIJ",NA,NA
+"148","P-STS",NA,"Bowel"
+"149","U-CH1",NA,"Bone"
+"150","Hs 888.Lu",NA,NA
+"151","BT 139",NA,"CNS/Brain"
+"152","BT 159",NA,"CNS/Brain"
+"153","BT 187",NA,"CNS/Brain"
+"154","BT 228",NA,"CNS/Brain"
+"155","BT 231",NA,"CNS/Brain"
+"156","BT 239",NA,"CNS/Brain"
+"157","Hs 578Bst",NA,NA
+"158","BT 248",NA,"CNS/Brain"
+"159","BT 131",NA,"CNS/Brain"
+"160","BT 147",NA,"CNS/Brain"
+"161","BT 172",NA,"CNS/Brain"
+"162","BT 216",NA,"CNS/Brain"
+"163","BT 232",NA,"CNS/Brain"
+"164","BT 245",NA,"CNS/Brain"
+"165","BT 271",NA,"CNS/Brain"
+"166","BT 286",NA,"CNS/Brain"
+"167","BT 320",NA,"CNS/Brain"
+"168","BT 328",NA,"CNS/Brain"
+"169","BT 330",NA,"CNS/Brain"
+"170","BT 333",NA,"CNS/Brain"
+"171","BT 340",NA,"CNS/Brain"
+"172","BT 359",NA,"CNS/Brain"
+"173","BT 416",NA,"CNS/Brain"
+"174","BT 422",NA,"CNS/Brain"
+"175","BT 428",NA,"CNS/Brain"
+"176","BT 440",NA,"CNS/Brain"
+"177","BT 444",NA,"CNS/Brain"
+"178","BT 482",NA,"CNS/Brain"
+"179","BT 498",NA,"CNS/Brain"
+"180","BT 504",NA,"CNS/Brain"
+"181","2004",NA,"Kidney"
+"182","Aska-SS",NA,"Soft Tissue"
+"183","BT-12",NA,"CNS/Brain"
+"184","BT-16",NA,"CNS/Brain"
+"185","SYO-1",NA,"Soft Tissue"
+"186","Tm87-16",NA,NA
+"187","TTC-709",NA,NA
+"188","Yamato-SS",NA,"Soft Tissue"
+"189","Tera-1","testis","Ovary/Fallopian Tube"
+"190","BT189",NA,"CNS/Brain"
+"191","184A1N4","breast",NA
+"192","OST","bone","Cervix"
