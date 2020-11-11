@@ -14,12 +14,12 @@ slot_names = ['curation', 'drug', 'molecularProfiles',
 def read_pset(pset_name, file_path, slot_names=['curation', 'drug', 'molecularProfiles', 'sensitivity', 'annotation', 'cell']):
     """
     Read in all the data associated with a PharmacoSet from the .csv files exported by the writeToCsv method from rPharmacoDI.
-
+    
     @param pset_name: [`string`] Name of the PharmacoSet object as it appears in the directory name for files exported using
         rPharmacoDIs writeToCsv function.
     @param file_path: [`string`] Path to the directory where PharmacoSet data is stored.
     @param slot_names: [`list`] A list of PharmacoSet slots to read in. Defaults to all slots in a PharmacoSet.
-
+    
     @return: [`DataFrame`] A DataFrame with the columns slot, containing the name of the slot data is from, one or more subitem columns, indicating
         the subitem in a slot a data came from, file path, the path data was read from and data, which contains the object associated with the
         selected slot and subitem.
@@ -29,30 +29,30 @@ def read_pset(pset_name, file_path, slot_names=['curation', 'drug', 'molecularPr
     if pset_dir is None:
         raise ValueError(
             f'No PSet directory named {pset_name} could be found in {file_path}')
-
+    
     # List al files for the select PSet, then split on $ to make a DataFrame
     pset_files = pd.Series(os.listdir(pset_dir))
     pset_files_df = pset_files.str.split('$', expand=True)
-
+    
     # Build the file paths to read in data for each row of the DataFrame
     pset_files_df['file_paths'] = [os.path.join(
         pset_dir, file_name) for file_name in pset_files]
-
+    
     # Rename columns
     pset_files_df.columns = [
         'slot', *[f'subitems{i}' for i in range(1, pset_files_df.shape[1] - 1)], 'file_paths']
-
+    
     # Read in PSet data
     pset_files_df['data'] = pset_files_df['file_paths'].swifter.apply(
         read_pset_file)
-
+    
     # Drop file_paths column by reference
     pset_files_df.drop('file_paths', axis='columns', inplace=True)
 
     # Process id columns to use the proper slot names
     pset_files_df.iloc[:, 0:-1] = pset_files_df.iloc[:, 0:-
                                                      1].apply(lambda col: col.str.replace('.*@|.csv.gz$|.txt', ''))
-
+    
     return pset_files_df
 
 

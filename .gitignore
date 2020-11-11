@@ -1,6 +1,5 @@
 # Ignore
 PharmacoDI/data/metadata/Annotations
-PharmacoDI/data/metadata/*
 PharmacoDI/data/rawdata/*
 *.RData
 .idea
