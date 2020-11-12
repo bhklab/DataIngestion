@@ -56,6 +56,7 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
 
     # -- build pathway_stats table
     ## FIXME:: Use standardized file names to prevent having manually specify which TSet
+    ## TODO:: Refactor this mess
     tghDT <- rbindlist(pathwayStats[grepl('TGH', names(pathwayStats))], fill=TRUE)
     tghDT[, `:=`(dataset_id='TGGATES_humanldh', cell_id='Hepatocyte')]
     tgrDT <- rbindlist(pathwayStats[grepl('TGR', names(pathwayStats))], fill=TRUE)
@@ -79,6 +80,16 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     # fix drugid
     pathway_stats[, compound_id := gsub('.fold_change', '',
         pathway_stats$compound_id)]
+
+    # -- fix pathway ids
+    pathway_stats[grepl('^KEGG', pathway_id),
+        pathway_id := stringr::str_extract(pathway_id, '^KEGG:[^-]*')]
+    pathway_stats[grepl('^REACT', pathway_id),
+        pathway_id := stringr::str_extract(pathway_id, '^REACT:[^-]*-[^-]*-[^-]*')]
+
+    # remove ids we couldn't map
+    pathway_stats <- pathway_stats[pathway_id %in% pathway$name]
+
 
     # -- map ids to pathway_stats
     ## TODO:: Refactor into a helper function
@@ -130,8 +141,36 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     pathway_compound <- unique(pathway_stats[, .(pathway_id, compound_id,
         cell_id, dataset_id)])
 
+    # sanity check
+    if (nrow(pathway_compound) != nrow(pathway_stats))
+        stop(.errorMsg(.context(), 'The unique combination of ',
+            'pathway_id, compound_id, dataset_id and cell_id has failed to ',
+            'uniquely identify rows in pathway_stats!'))
 
+    # -- build pathway_genes
+    pathway_gene <- unique(pathwayDT[, .(pathway_id, gene_id)])
 
+    # map gene id to table
+    setkeyv(gene, 'name')
+    setkeyv(pathway_gene, 'gene_id')
+    pathway_gene[gene, gene_id := i.id]
+    pathway_gene[, gene_id := as.integer(gene_id)]
+
+    # map pathway id to table
+    setkeyv(pathway_gene, 'pathway_id')
+    setkeyv(pathway, 'name')
+    pathway_gene[pathway, pathway_id := i.id]
+    pathway_gene[, pathway_id := as.integer(pathway_id)]
+
+    # map dataset id to table
+    pathway_dataset <- unique(pathway_stats[, .(id, dataset_id)])
+    setnames(pathway_dataset, 'id', 'dataset_id')
+
+    for (table in c('pathway', 'pathway_stats', 'pathway_compound',
+        'pathway_dataset'))
+    {
+        fwrite(get(table), file=file.path(outDir, paste0(table, '.csv')))
+    }
 }
 
 if (sys.nframe() == 0) {
