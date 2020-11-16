@@ -174,14 +174,26 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     # fix pathway key and sort on index
     setkeyv(pathway, 'id')
 
+    # ---- REMAPPING ERRORS IN TSETS
+
     # remap dataset names
-    dataset_names <- fread(file.path('metadata', 'dataset_name_mapping.csv'), quote=)
+    dataset_names <- fread(file.path('metadata', 'dataset_name_mapping.csv'))
     setkeyv(dataset_names, 'tset_name')
     setkeyv(dataset, 'name')
     dataset[dataset_names, name := i.dataset_name]
 
+    # update compound names which haven't been modified in the tSets yet
+    drugRemappings <- fread(file.path('metadata', 'old_newDrugmapping.csv'))
+    setkey(drugRemappings, 'Old name')
+    setkey(compound, 'name')
+    compound[drugRemappings, name := `New name`]
+    if (any(drugRemappings$`Old name` %in% compound$name))
+        stop(.errorMsg(.context(), 'An old drug name is present in the
+            compound table, something has gone wrong with remapping
+            old drug names to new ones.'))
+
     for (table in c('pathway', 'pathway_stats', 'pathway_compound',
-        'pathway_dataset', 'dataset'))
+        'pathway_dataset', 'dataset', 'compound'))
     {
         fwrite(get(table), file=file.path(outDir, paste0(table, '.csv')))
     }

@@ -13,14 +13,14 @@
 #' @import data.table
 #' @export
 buildCompoundTables <- function(path='procdata',
-    annotPath='metadata/drug_annotations.csv', outDir='latest', ...,
-    updatedCompounds='metadata/',
+    annotPath='metadata/drugs_updated.csv', outDir='latest', ...,
+    updatedCompounds='metadata/old_newDrugmapping.csv',
     annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
         chembl='chembl', drugbank='drugbank', targets='targets',
         carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
         class_in_vitro='classif_in_vitro', class_name='class_name',
         smiles='smiles', inchikey='inchikey', name='name',
-        NTP=NA, IARC=NA, DILI_status=NA)
+        NTP='ntp', IARC='iarc', DILI_status='dili_status')
     )
 {
     # ensure the output directory exists
@@ -33,7 +33,7 @@ buildCompoundTables <- function(path='procdata',
         trimws(gsub('^.*/|.csv$', '', files))
 
     # load annotations file
-    annotations <- fread(annotPath)
+    annotations <- fread(annotPath)[, drug_id := NULL]
     annotations <- unique(annotations)
     renameMap <- na.omit(annotColMap)
     setnames(annotations, renameMap, names(renameMap), skip_absent=TRUE)
@@ -81,14 +81,10 @@ buildCompoundTables <- function(path='procdata',
     setnames(compound_dataset, 'V2', 'dataset')
     setnames(compound_dataset, 'dataset_drugid', 'compound_uid')
 
-    # build datasets table if it doesn't already exist
-    if (!file.exists(file.path(outDir, 'dataset.csv'))) {
-        dataset <- data.table(
-            id=seq_along(names(compoundTables)),
-            name=names(compoundTables))
-    } else {
-        dataset <- fread(file.path(outDir, 'dataset.csv'))
-    }
+    # build datasets table
+    dataset <- data.table(
+        id=seq_along(names(compoundTables)),
+        name=names(compoundTables))
 
     setkeyv(dataset, 'name')
     setkeyv(compound_dataset, 'dataset')
@@ -98,17 +94,9 @@ buildCompoundTables <- function(path='procdata',
     compound_dataset <- merge(compound_dataset, compound)[, .(id, dataset_id, compound_uid)]
     setnames(compound_dataset, 'id', 'compound_id')
 
-    # update compound names which haven't been modified in the tSets yet
-    drugRemappings <- fread(file.path('metadata', 'old_newDrugmapping.csv'))
-    setkey(drugRemappings, 'Old name')
-    setkey(compound, 'name')
-    compound[drugRemappings, compound_id := `New name`]
-    if (any(drugRemappings$`Old name` %in% compound$name))
-        stop(.errorMsg(.context(), 'An old drug name is present in the
-            pathway_stats table, something has gone wrong with remapping
-            old drug names to new ones.'))
-
-    for (table in c('compound', 'compound_annotations', 'compound_dataset', 'dataset')) {
+    for (table in c('compound', 'compound_annotations', 'compound_dataset',
+        'dataset'))
+    {
         fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
     }
 }
@@ -116,14 +104,15 @@ buildCompoundTables <- function(path='procdata',
 if (sys.nframe() == 0) {
     library(data.table)
     path='procdata'
-    annotPath='metadata/drug_annotations.csv'
+    annotPath='metadata/drugs_updated.csv'
     outDir='latest'
+    updatedCompounds='metadata/old_newDrugmapping.csv'
     annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
         chembl='chembl', drugbank='drugbank', targets='targets',
         carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
         class_in_vitro='classif_in_vitro', class_name='class_name',
         smiles='smiles', inchikey='inchikey', name='name',
-        NTP=NA, IARC=NA, DILI_status=NA)
+        NTP='ntp', IARC='iarc', DILI_status='dili_status')
 
 
 

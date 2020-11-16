@@ -67,6 +67,9 @@ buildSampleTables <- function(path='procdata', outDir='latest', ...) {
     #rm(cell)
 
     # map compund
+    if (!(all(sample$compound_id %in% compound$name)))
+        stop(.errorMsg(.collapse(), 'Not all sample compound_ids are in the ',
+            'compound table!'))
     setkeyv(sample, 'compound_id')
     setkeyv(compound, 'name')
     sample[compound, compound_id := i.id]
