@@ -13,7 +13,7 @@
 #' @import data.table
 #' @export
 buildCompoundTables <- function(path='procdata',
-    annotPath='metadata/Drug_annotations_V2.1.csv',
+    annotPath='metadata/drug_annotations.csv',
     moreAnnotPath='metadata/labels_toVerify.csv', outDir='latest', ...,
     annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
     drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
@@ -26,7 +26,7 @@ buildCompoundTables <- function(path='procdata',
 
     # load the compound table for each tSet
     files <- list.files(file.path(path, 'compound'), pattern='csv', full.names=TRUE)
-    compoundTables <- lapply(files, fread, sep='\n', quote=FALSE)  # disable quoting input
+    compoundTables <- lapply(files, fread, quote=FALSE)  # disable quoting input
     names(compoundTables) <-
         trimws(gsub('^.*/|.csv$', '', files))
 
@@ -98,6 +98,7 @@ buildCompoundTables <- function(path='procdata',
         SIMPLIFY=FALSE)
     compound_dataset <- rbindlist(compound_dataset)
     setnames(compound_dataset, 'V2', 'dataset')
+    setnames(compound_dataset, 'dataset_drugid', 'compound_uid')
 
     # build datasets table if it doesn't already exist
     if (!file.exists(file.path(outDir, 'dataset.csv'))) {
@@ -124,7 +125,7 @@ buildCompoundTables <- function(path='procdata',
 if (sys.nframe() == 0) {
     library(data.table)
     path='procdata'
-    annotPath='metadata/Drug_annotations_V2.1.csv'
+    annotPath='metadata/drug_annotations.csv'
     moreAnnotPath='metadata/labels_toVerify.csv'
     outDir='latest'
     annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
