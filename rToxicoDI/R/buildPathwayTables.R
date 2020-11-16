@@ -164,12 +164,15 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
 
     # map dataset id to table
     pathway_dataset <- unique(pathway_stats[, .(id, dataset_id)])
-    setnames(pathway_dataset, 'id', 'dataset_id')
+    setnames(pathway_dataset, 'id', 'pathway_id')
 
     # subset pathway_stats
     pathway_stats[, ontology := NA]
     pathway_stats <- pathway_stats[, .(pathway_id, ontology, genes_total,
         stat_dis, genes_up, genes_down, p_value, fdr)]
+
+    # fix pathway key and sort on index
+    setkeyv('pathway', id)
 
     for (table in c('pathway', 'pathway_stats', 'pathway_compound',
         'pathway_dataset'))

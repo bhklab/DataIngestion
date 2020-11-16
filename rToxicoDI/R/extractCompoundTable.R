@@ -17,8 +17,15 @@ extractCompoundTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
 
-    compoundInfo <- as.data.table(drugInfo(tSet))[, 'drugid']
+    drugInfoCompounds <- as.data.table(drugInfo(tSet))[, 'drugid']
+
+    compoundInfo <-
+        unique(as.data.table(phenoInfo(tSet, 'rna'))[, .(drugid, dataset_drugid)])
     setnames(compoundInfo, 'drugid', 'name')
+
+    if (!setequal(drugInfoCompounds$drugid, compoundInfo$name))
+        stop(.errorMsg(.context(), 'The drug ids in drugInfo and phenoInfo',
+            'are different! ToxicoSet mapping issue identified!'))
 
     fileName <- .preprocessFileName(fileName)
 
