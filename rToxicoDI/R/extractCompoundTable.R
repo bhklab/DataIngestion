@@ -20,8 +20,11 @@ extractCompoundTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
     drugInfoCompounds <- as.data.table(drugInfo(tSet))[, 'drugid']
 
     compoundInfo <-
-        unique(as.data.table(phenoInfo(tSet, 'rna'))[, .(drugid, dataset_drugid)])
+        unique(as.data.table(phenoInfo(tSet, 'rna')))[, .SD,
+            .SDcols=patterns('^drugid$|dataset.drugid')]
     setnames(compoundInfo, 'drugid', 'name')
+    setnames(compoundInfo, 'dataset.drugid', 'dataset_drugid',
+        skip_absent=TRUE)
 
     if (!setequal(drugInfoCompounds$drugid, compoundInfo$name))
         stop(.errorMsg(.context(), 'The drug ids in drugInfo and phenoInfo',

@@ -5,6 +5,7 @@
 #'
 #'
 #' @md
+#' @import data.table
 #' @export
 extractAllTables <- function(path='tSets',
     pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds', outDir='procdata')
