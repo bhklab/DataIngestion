@@ -15,18 +15,20 @@
 buildCompoundTables <- function(path='procdata',
     annotPath='metadata/drug_annotations.csv',
     moreAnnotPath='metadata/labels_toVerify.csv', outDir='latest', ...,
-    annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
-    drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
-    class_in_vivo='Classif. in vivo', class_in_vitro='Classif. in vitro',
-    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid',
-    NTP=NA, IARC=NA, DILI_status=NA))
+    annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
+        chembl='chembl', drugbank='drugbank', targets='targets',
+        carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
+        class_in_vitro='classif_in_vitro', class_name='class_name',
+        smiles='smiles', inchikey='inchikey', name='name',
+        NTP=NA, IARC=NA, DILI_status=NA)
+    )
 {
     # ensure the output directory exists
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)
 
     # load the compound table for each tSet
     files <- list.files(file.path(path, 'compound'), pattern='csv', full.names=TRUE)
-    compoundTables <- lapply(files, fread, quote=FALSE)  # disable quoting input
+    compoundTables <- lapply(files, fread)  # disable quoting input
     names(compoundTables) <-
         trimws(gsub('^.*/|.csv$', '', files))
 
@@ -38,7 +40,7 @@ buildCompoundTables <- function(path='procdata',
     setnames(annotations, renameMap, names(renameMap), skip_absent=TRUE)
 
     # build compound annotation table
-    compoundTable <- unique(rbindlist(compoundTables))
+    compoundTable <- unique(rbindlist(compoundTables))[, 'name']
     compoundTable[, name := gsub('\\\"', '', name)]
     compoundTable
 
@@ -96,7 +98,7 @@ buildCompoundTables <- function(path='procdata',
     # build compound datasets tables
     compound_dataset <- mapply(cbind, compoundTables, names(compoundTables),
         SIMPLIFY=FALSE)
-    compound_dataset <- rbindlist(compound_dataset)
+    compound_dataset <- unique(rbindlist(compound_dataset))
     setnames(compound_dataset, 'V2', 'dataset')
     setnames(compound_dataset, 'dataset_drugid', 'compound_uid')
 
@@ -111,7 +113,7 @@ buildCompoundTables <- function(path='procdata',
 
     setkeyv(dataset, 'name')
     setkeyv(compound_dataset, 'dataset')
-    compound_dataset[dataset, `:=`(dataset_id=i.id, compound_uid=NA)]
+    compound_dataset[dataset, `:=`(dataset_id=i.id)]
     setkeyv(compound, 'name')
     setkeyv(compound_dataset, 'name')
     compound_dataset <- merge(compound_dataset, compound)[, .(id, dataset_id, compound_uid)]
@@ -128,11 +130,12 @@ if (sys.nframe() == 0) {
     annotPath='metadata/drug_annotations.csv'
     moreAnnotPath='metadata/labels_toVerify.csv'
     outDir='latest'
-    annotColMap=c(compound_id='id', pubchem=NA, cid='cid', chembl=NA,
-    drugbank = NA, targets=NA, carcinogenicity='Carcinogenicity',
-    class_in_vivo='Classif. in vivo', class_in_vitro='Classif. in vitro',
-    class_name=NA, smiles='smiles', inchikey='inchikey', name='unique.drugid',
-    NTP=NA, IARC=NA, DILI_status=NA)
+    annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
+        chembl='chembl', drugbank='drugbank', targets='targets',
+        carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
+        class_in_vitro='classif_in_vitro', class_name='class_name',
+        smiles='smiles', inchikey='inchikey', name='name',
+        NTP=NA, IARC=NA, DILI_status=NA)
 
 
 
