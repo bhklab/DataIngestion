@@ -46,13 +46,18 @@ buildCompoundTables <- function(path='procdata',
 
     setkeyv(compoundTable, 'name')
     setkeyv(annotations, 'name')
-    compound <- merge.data.table(compoundTable, annotations, all.x=TRUE,
-        sort=FALSE)
+    compound <- unique(merge.data.table(compoundTable, annotations, all.x=TRUE,
+        sort=FALSE))
 
     # ensure nothing weird happened in the join
     if (!setequal(compound$name, compoundTable$name))
         stop(.context(), 'the compound table has more or less compound after
             joining with the annotations table. Something has gone wrong!')
+
+    # ensure no duplciated
+    if (any(duplicated(compound$name)))
+        stop(.erroMsg(.context(), 'There are duplicated compound names in ',
+            'the compound table!'))
 
     # build compound tables
     compound[, id := seq_len(.N)]

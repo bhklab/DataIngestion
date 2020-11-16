@@ -172,10 +172,10 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
         stat_dis, genes_up, genes_down, p_value, fdr)]
 
     # fix pathway key and sort on index
-    setkeyv('pathway', id)
+    setkeyv(pathway, 'id')
 
     # remap dataset names
-    dataset_names <- fread(file.path('metadata', 'drug_name_mappings'))
+    dataset_names <- fread(file.path('metadata', 'dataset_name_mapping.csv'), quote=)
     setkeyv(dataset_names, 'tset_name')
     setkeyv(dataset, 'name')
     dataset[dataset_names, name := i.dataset_name]
