@@ -2,7 +2,7 @@
 #'
 #'
 #'
-#'
+#' @export
 buildAllTables <- function() {
 
     buildCompoundTables()
