@@ -163,8 +163,7 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     pathway_gene[, pathway_id := as.integer(pathway_id)]
 
     # map dataset id to table
-    pathway_dataset <- unique(pathway_stats[, .(id, dataset_id)])
-    setnames(pathway_dataset, 'id', 'pathway_id')
+    pathway_dataset <- unique(pathway_stats[, .(pathway_id, dataset_id)])
 
     # subset pathway_stats
     pathway_stats[, ontology := NA]
@@ -193,7 +192,7 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
             old drug names to new ones.'))
 
     for (table in c('pathway', 'pathway_stats', 'pathway_compound',
-        'pathway_dataset', 'dataset', 'compound'))
+        'pathway_gene', 'pathway_dataset', 'dataset', 'compound'))
     {
         fwrite(get(table), file=file.path(outDir, paste0(table, '.csv')))
     }
