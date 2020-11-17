@@ -13,7 +13,7 @@
 #' @import data.table
 #' @export
 buildCompoundTables <- function(path='procdata',
-    annotPath='metadata/drugs_updated.csv', outDir='latest', ...,
+    annotPath='metadata/drug_annotations.csv', outDir='latest', ...,
     updatedCompounds='metadata/old_newDrugmapping.csv',
     annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
         chembl='chembl', drugbank='drugbank', targets='targets',

@@ -174,7 +174,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
 
     # -- write to disk
     for (table in c('gene', 'gene_dataset', 'compound_gene_response',
-        'analysis'))
+        'analysis', 'gene_annotation'))
     {
         fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
     }

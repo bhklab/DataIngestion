@@ -6,7 +6,7 @@
 \usage{
 buildCompoundTables(
   path = "procdata",
-  annotPath = "metadata/drugs_updated.csv",
+  annotPath = "metadata/drug_annotations.csv",
   outDir = "latest",
   ...,
   updatedCompounds = "metadata/old_newDrugmapping.csv",
