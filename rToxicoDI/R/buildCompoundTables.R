@@ -102,6 +102,7 @@ buildCompoundTables <- function(path='procdata',
     compound_synonyms <- merge.data.table(compound, synonym, by.x='name',
         by.y='Drug', allow.cartesian=TRUE)
     compound_synonyms[, name := NULL]
+    setnames(compound_synonyms, c('id', 'Synonym'), c('compound_id', 'synonym'))
 
     for (table in c('compound', 'compound_annotations', 'compound_dataset',
         'dataset', 'compound_synonyms'))

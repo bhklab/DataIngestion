@@ -185,6 +185,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     gene_synonym <- merge.data.table(synonym, gene, by.x='EnsemblID',
         by.y='name', allow.cartesian=TRUE)[, .(id, Synonyms)]
     gene_synonym <- na.omit(gene_synonym)
+    setnames(gene_synonym, c('id', 'Synonyms'), c('gene_id', 'synonym'))
 
     if (!all(gene_synonym$id %in% gene$id))
         stop(.errorMsg(.conext(), 'Gene id in gene_synonym not in gene,
