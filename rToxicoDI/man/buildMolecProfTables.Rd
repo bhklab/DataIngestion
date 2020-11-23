@@ -7,6 +7,7 @@
 buildMolecProfTables(
   path = "procdata",
   outDir = "latest",
+  geneSynonymPattern = "GeneSynonyms.*csv",
   ...,
   molecProf = "molecProf",
   gene = "gene",

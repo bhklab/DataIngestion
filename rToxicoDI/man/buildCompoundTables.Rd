@@ -10,6 +10,7 @@ buildCompoundTables(
   outDir = "latest",
   ...,
   updatedCompounds = "metadata/old_newDrugmapping.csv",
+  synonymPath = "metadata/Compound_synonyms.csv",
   annotColMap = c(compound_id = "compound_id", pubchem = "pubchem", ctd = "ctd", chembl
     = "chembl", drugbank = "drugbank", targets = "targets", carcinogenicity =
     "carcinogenicity", class_in_vivo = "classif_in_vivo", class_in_vitro =

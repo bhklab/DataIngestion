@@ -15,6 +15,7 @@
 buildCompoundTables <- function(path='procdata',
     annotPath='metadata/drug_annotations.csv', outDir='latest', ...,
     updatedCompounds='metadata/old_newDrugmapping.csv',
+    synonymPath='metadata/Compound_synonyms.csv',
     annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
         chembl='chembl', drugbank='drugbank', targets='targets',
         carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
@@ -94,8 +95,16 @@ buildCompoundTables <- function(path='procdata',
     compound_dataset <- merge(compound_dataset, compound)[, .(id, dataset_id, compound_uid)]
     setnames(compound_dataset, 'id', 'compound_id')
 
+    synonym <- fread(synonymPath)
+    synonym[, id := NULL]
+    setkeyv(synonym, 'Drug')
+    setkeyv(compound, 'name')
+    compound_synonyms <- merge.data.table(compound, synonym, by.x='name',
+        by.y='Drug', allow.cartesian=TRUE)
+    compound_synonyms[, name := NULL]
+
     for (table in c('compound', 'compound_annotations', 'compound_dataset',
-        'dataset'))
+        'dataset', 'compound_synonyms'))
     {
         fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
     }
@@ -104,16 +113,16 @@ buildCompoundTables <- function(path='procdata',
 if (sys.nframe() == 0) {
     library(data.table)
     path='procdata'
-    annotPath='metadata/drugs_updated.csv'
+    annotPath='metadata/drug_annotations.csv'
     outDir='latest'
     updatedCompounds='metadata/old_newDrugmapping.csv'
+    synonymPath='metadata/Compound_synonyms.csv'
     annotColMap=c(compound_id='compound_id', pubchem='pubchem', ctd='ctd',
         chembl='chembl', drugbank='drugbank', targets='targets',
         carcinogenicity='carcinogenicity', class_in_vivo='classif_in_vivo',
         class_in_vitro='classif_in_vitro', class_name='class_name',
         smiles='smiles', inchikey='inchikey', name='name',
         NTP='ntp', IARC='iarc', DILI_status='dili_status')
-
 
 
     buildCompoundTables()
