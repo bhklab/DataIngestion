@@ -138,7 +138,7 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     # -- build pathway_compound
     pathway_stats <- unique(pathway_stats)  # ensure there are no duplicate rows
     pathway_stats[, id := seq_len(.N)]
-    pathway_compound <- unique(pathway_stats[, .(pathway_id, compound_id,
+    pathway_compound <- unique(pathway_stats[, .(id, pathway_id, compound_id,
         cell_id, dataset_id)])
 
     # sanity check
@@ -167,7 +167,7 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
 
     # subset pathway_stats
     pathway_stats[, ontology := NA]
-    pathway_stats <- pathway_stats[, .(pathway_id, ontology, genes_total,
+    pathway_stats <- pathway_stats[, .(id, ontology, genes_total,
         stat_dis, genes_up, genes_down, p_value, fdr)]
 
     # fix pathway key and sort on index

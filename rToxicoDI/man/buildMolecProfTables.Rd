@@ -20,6 +20,9 @@ extracted.}
 
 \item{outDir}{\code{character} path to save table csvs to.}
 
+\item{geneSynonymPattern}{A \code{character} string with a valid regex pattern,
+passed to \code{pattern} of \code{list.files} to load in all gene synonym files.}
+
 \item{...}{\code{pairlist} force subsequent arguments to be named.}
 
 \item{molecProf}{\code{character} Name of molecular profiles directory within
