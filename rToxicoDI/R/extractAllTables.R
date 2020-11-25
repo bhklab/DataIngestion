@@ -1,8 +1,11 @@
+#' Extract all data needed to build the ToxicoDB database tables from a set of
+#'   `ToxicoSet` objects
+#'
+#' @param path `character`
 #'
 #'
-#'
-#'
-#'
+#' @md
+#' @import data.table
 #' @export
 extractAllTables <- function(path='tSets',
     pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds', outDir='procdata')

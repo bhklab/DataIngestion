@@ -14,15 +14,17 @@
 #'   Default is parameter name.
 #' @param analysis `character` Name of gene directory within the `path`
 #'   directory. Default is parameter name.
+#' @param geneSynonymPattern A `character` string with a valid regex pattern,
+#'   passed to `pattern` of `list.files` to load in all gene synonym files.
 #'
 #' @return None. Writes to disk.
 #'
 #' @import data.table
 #' @md
 #' @export
-buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
-    molecProf='molecProf', gene='gene', analysis='analysis')
-
+buildMolecProfTables <- function(path='procdata', outDir='latest',
+    geneSynonymPattern='GeneSynonyms.*csv', ...,  molecProf='molecProf',
+    gene='gene', analysis='analysis')
 {
     ## TODO:: Refactor this into at least two functions
 
@@ -52,6 +54,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     # -- build gene tables
 
     gene <- rbindlist(geneTables)
+    gene[, gene_id := gsub('_at', '', gene_id)]
     gene$dataset_id <- unlist(mapply(rep, x=names(geneTables),
         times=vapply(geneTables, nrow, numeric(1)), SIMPLIFY=FALSE))
     #rm(geneTables)
@@ -96,6 +99,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     molecProfTables <- lapply(molecProfTables, `[`,  # fix column types
         j=sample_id := as.character(sample_id))
     compound_gene_response <- unique(rbindlist(molecProfTables))
+    compound_gene_response[, gene_id := gsub('_at', '', gene_id)]
     #rm(molecProfTables)
 
     # map ids from other tables
@@ -110,7 +114,6 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     compound_gene_response[, `:=`(sample_id=as.integer(sample_id),
                                   gene_id=as.integer(gene_id))]
 
-
     # -- build analysis table
     .addColumn <- function(x, colName, value) {  # reference symantics
         x[,  newCol := value]
@@ -120,6 +123,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     analysisTables <- mapply(.addColumn, x=analysisTables,
         colName='dataset_id', value=names(analysisTables), SIMPLIFY=FALSE)
     analysis <- rbindlist(analysisTables)
+    analysis[, gene_id := gsub('_at', '', gene_id)]
     #rm(analysisTables)
 
     # map ids from other tables
@@ -141,7 +145,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     # map sample_id to analysis
     sample <- merge.data.table(sample, dataset_sample, by.x='id',
         by.y='sample_id')
-
+    ## FIXME:: Stop coercing column types it's slow, just add new column and delete old one
     analysis[, `:=`(id=seq_len(.N), gene_id=as.integer(gene_id),  # fix column types for join
         compound_id=as.integer(compound_id), dataset_id=as.integer(dataset_id),
         cell_id=as.integer(cell_id))]
@@ -169,9 +173,27 @@ buildMolecProfTables <- function(path='procdata', outDir='latest', ...,
     setorderv(gene, 'id')
     setorderv(compound_gene_response, 'gene_id')
 
+    # make the synonym table
+    synonymFiles <- list.files('metadata', pattern=geneSynonymPattern,
+        full.names=TRUE)
+    synonyms <- lapply(synonymFiles, fread)
+    synonym <- rbindlist(synonyms)[, id := NULL]
+    synonym[Synonyms == '-', Synonyms := NA]
+    rm(synonyms)
+    setkeyv(synonym, 'EnsemblID')
+    setkeyv(gene, 'name')
+    gene_synonym <- merge.data.table(synonym, gene, by.x='EnsemblID',
+        by.y='name', allow.cartesian=TRUE)[, .(id, Synonyms)]
+    gene_synonym <- na.omit(gene_synonym)
+    setnames(gene_synonym, c('id', 'Synonyms'), c('gene_id', 'synonym'))
+
+    if (!all(gene_synonym$id %in% gene$id))
+        stop(.errorMsg(.conext(), 'Gene id in gene_synonym not in gene,
+            please proceed to panic!'))
+
     # -- write to disk
     for (table in c('gene', 'gene_dataset', 'compound_gene_response',
-        'analysis'))
+        'analysis', 'gene_annotation', 'gene_synonym'))
     {
         fwrite(get(table), file.path(outDir, paste0(table, '.csv')))
     }
@@ -184,6 +206,7 @@ if (sys.nframe() == 0) {
     source('R/utilities.R')
     path='procdata'
     outDir='latest'
+    geneSynonymPattern='GeneSynonyms.*csv'
     molecProf='molecProf'
     gene='gene'
     analysis='analysis'
