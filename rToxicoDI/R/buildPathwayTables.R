@@ -82,9 +82,9 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
         pathway_stats$compound_id)]
 
     # -- fix pathway ids
-    pathway_stats[grepl('^KEGG', pathway_id),
+    pathway_stats[grepl('^KEGG:', pathway_id),
         pathway_id := stringr::str_extract(pathway_id, '^KEGG:[^-]*')]
-    pathway_stats[grepl('^REACT', pathway_id),
+    pathway_stats[grepl('^REACT:', pathway_id),
         pathway_id := stringr::str_extract(pathway_id, '^REACT:[^-]*-[^-]*-[^-]*')]
 
     # remove ids we couldn't map
