@@ -13,7 +13,7 @@ buildAllTables <- function() {
 
     buildMolecProfTables()
 
-    buildSampleTables()
+    buildSensitivityTables()
 
     # Current this function needs to be run last, because it remaps names
     #   for both datasets and compounds

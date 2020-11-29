@@ -46,13 +46,22 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
     # get pathway_id
     setkeyv(pathway, 'name')
     setkeyv(pathway_gene, 'pathway_id')
-    pathway_gene[pathway, pathway_id := i.id]
+    pathway_gene <- merge.data.table(pathway_gene, pathway, by.x='pathway_id', by.y='name')
+    pathway_gene[, pathway_id := NULL]
+    setnames(pathway_gene, 'id', 'pathway_id')
     # get gene_id
     setkeyv(gene, 'name')
     setkeyv(pathway_gene, 'gene_id')
-    pathway_gene[gene, gene_id := i.id]
-    pathway_gene[, `:=`(pathway_id=as.integer(pathway_id),
-        gene_id=as.integer(gene_id))]
+    pathway_gene <- merge.data.table(gene, pathway_gene, by.x='name',
+        by.y='gene_id', allow.cartesian=TRUE)
+    setnames(pathway_gene, 'id', 'gene_id')
+    pathway_gene[, name := NULL]
+
+    # sanity check
+    if (any(is.na(pathway_gene)))
+        stop(.errorMsg(.context(), 'There are missing values in pathway gene',
+            'after joining with gene. Something has gone wrong!'))
+
 
     # -- build pathway_stats table
     ## FIXME:: Use standardized file names to prevent having manually specify which TSet
@@ -146,21 +155,6 @@ buildPathwayTables <- function(path='procdata', outDir='latest', ...)
         stop(.errorMsg(.context(), 'The unique combination of ',
             'pathway_id, compound_id, dataset_id and cell_id has failed to ',
             'uniquely identify rows in pathway_stats!'))
-
-    # -- build pathway_genes
-    pathway_gene <- unique(pathwayDT[, .(pathway_id, gene_id)])
-
-    # map gene id to table
-    setkeyv(gene, 'name')
-    setkeyv(pathway_gene, 'gene_id')
-    pathway_gene[gene, gene_id := i.id]
-    pathway_gene[, gene_id := as.integer(gene_id)]
-
-    # map pathway id to table
-    setkeyv(pathway_gene, 'pathway_id')
-    setkeyv(pathway, 'name')
-    pathway_gene[pathway, pathway_id := i.id]
-    pathway_gene[, pathway_id := as.integer(pathway_id)]
 
     # map dataset id to table
     pathway_dataset <- unique(pathway_stats[, .(pathway_id, dataset_id)])
