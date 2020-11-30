@@ -18,7 +18,7 @@ extractPathwayTable <- function(path='metadata/pathways_raw.txt',
     CTDpathways <- getCTDpathways()
 
     # -- extract the pathway data
-    mSigDT <- mSigPathways[grepl('^GO.*|^REACTOME.*', gs_name),
+    mSigDT <- mSigPathways[grepl('^GO_.*|^REACTOME.*', gs_name),
         .(gene_symbol, gs_name)]
     setnames(mSigDT, c('gs_name'), c('pathway_id'))
     pathway <- rbind(mSigDT, CTDpathways[, .(gene_symbol, pathway_id)])
