@@ -5,8 +5,7 @@ import numpy as np
 import dask.dataframe as dd
 
 pset_name = 'GDSC_v1'
-# the directory where you want to store the tables (processed data)
-file_path = 'procdata'
+file_path = os.path.join('data', 'procdata')
 metadata_path = os.path.join("data", "metadata", "Annotations")
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures', 'pearson_perm_res')  # the directory with data for gene_drugs
@@ -27,25 +26,30 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     pset_dfs = {}
 
     # Build primary tables
-    pset_dfs['dataset'] = pd.DataFrame({'id': pset_name, 'name': pset_name})
+    print('Building primary tables...')
+    pset_dfs['dataset'] = pd.Series(pset_name, name='name')  #pd.DataFrame({'id': pset_name, 'name': pset_name})
     build_primary_tables(pset_dict, pset_dfs)
 
     # Build annotation tables
+    print('Building annotation tables...')
     build_annotation_dfs(pset_dict, pset_dfs)
 
-    # Build secondary tables - TODO simplify this further?
+    # Build secondary tables
+    print('Building secondary tables...')
     pset_dfs['cell'] = build_cells_df(pset_dict, pset_dfs['tissue'])
     pset_dfs['experiments'] = build_experiments_df(
         pset_dict, pset_dfs['cell'], pset_name)
-    pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug'])
+    #pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug']) # TODO - API
     pset_dfs['dose_responses'] = build_dose_response_df(
         pset_dict, pset_dfs['experiments'])
     pset_dfs['profiles'] = build_profiles_df(pset_dict)
 
     # Build gene drugs table
+    print('Building gene drugs table...')
     pset_dfs['gene_drugs'] = build_gene_drugs_df(gene_sig_file_path, pset_name)
 
     # Build summary/stats tables
+    print('Building summary/stats tables...')
     pset_dfs['datasets_cells'] = build_datasets_cells_df(
         pset_dict, pset_dfs['cell'], pset_name)
     pset_dfs['mol_cells'] = build_mol_cells_df(
@@ -65,19 +69,28 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
     @return [`None`]
     """
     file_path = os.path.join(df_dir, pset_name)
+    # Make sure directory for this pset exists
+    if not os.path.exists(file_path):
+        os.mkdir(file_path)
 
     # TODO - test out and get a better dask_threshold if needed
-    for df in pset_dfs.keys():
+    for df_name in pset_dfs.keys():
+        print(f'Writing {df_name} table to csv...')
+        df = pset_dfs[df_name]
+
+        df_path = os.path.join(file_path, df_name)
+        # Make sure subdirectory for this table exists
+        if not os.path.exists(df_path):
+            os.mkdir(df_path)
+
         if len(df.index) < dask_threshold:
             # Use pandas to convert df to csv
-            df.to_csv(os.path.join(file_path, df,
-                                   f'{pset_name}_{df}.csv'), index=False)
+            df.to_csv(os.path.join(df_path, f'{pset_name}_{df_name}.csv'))
         else:
             # Convert pandas df into dask df TODO - check how many partitions it makes and adjust if necessary
-            dask_df = dd.from_pandas(pset_dfs[df])
+            dask_df = dd.from_pandas(df)
             # Write dask_df to csv
-            dd.to_csv(dask_df, os.path.join(
-                file_path, df, f'{pset_name}_{df}-*.csv'))
+            dd.to_csv(dask_df, os.path.join(df_path, f'{pset_name}_{df}-*.csv'))
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -96,7 +109,7 @@ def build_primary_tables(pset_dict, pset_dfs):
     pset_dfs['gene'] = build_gene_table(pset_dict)
 
 
-# TODO - check that you're getting the correct ID *
+# TODO - is it ok that we're only looking in rna molecular profiles?
 def build_gene_table(pset_dict):
     """
     Build a table containing all genes in a dataset.
@@ -107,7 +120,7 @@ def build_gene_table(pset_dict):
     genes = pd.Series(pd.unique(
         pset_dict['molecularProfiles']['rna']['rowData']['EnsemblGeneId']))
 
-    return pd.DataFrame({'id': genes, 'name': genes})
+    return genes #pd.DataFrame({'id': genes, 'name': genes})
 
 
 def build_tissue_table(pset_dict):
@@ -118,7 +131,7 @@ def build_tissue_table(pset_dict):
     @return: [`DataFrame`] The tissue table
     """
     tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']))
-    return pd.DataFrame({'id': tissues, 'name': tissues})
+    return tissues #pd.DataFrame({'id': tissues, 'name': tissues})
 
 
 # Make drugs df; TODO - confirm whether to use drugid (?) or DRUG_NAME (targets)
@@ -130,7 +143,7 @@ def build_drug_table(pset_dict):
     @return: [`DataFrame`] The drug table
     """
     drugs = pd.Series(pd.unique(pset_dict['drug']['drugid']))
-    return pd.DataFrame({'id': drugs, 'name': drugs})
+    return drugs #pd.DataFrame({'id': drugs, 'name': drugs})
 
 
 # --- ANNOTATION TABLES -----------------------------------------------------------------------
@@ -157,12 +170,11 @@ def build_gene_annotations_df(pset_dict):
     """
     # Make gene_annotations df
     gene_annotations_df = pset_dict['molecularProfiles']['rna']['rowData'][[
-        'EnsemblGeneId', 'Symbol']]
+        'EnsemblGeneId', 'Symbol']].copy()
     gene_annotations_df.columns = ['gene_id', 'symbol']
-    gene_annotations_df.loc[:, ('gene_seq_start')] = np.nan  # TODO - fill in
-    # TODO - fill in & fix copy warning
-    gene_annotations_df.loc[:, ('gene_seq_end')] = np.nan
-
+    gene_annotations_df['gene_seq_start'] = np.nan  # TODO - fill in
+    gene_annotations_df['gene_seq_end'] = np.nan # TODO - fill in
+    
     return gene_annotations_df
 
 
@@ -175,7 +187,7 @@ def build_drug_annotations_df(pset_dict):
     """
     # Make drug_annotations df
     drug_annotations_df = pset_dict['drug'][[
-        'rownames', 'smiles', 'inchikey', 'cid', 'FDA']]
+        'rownames', 'smiles', 'inchikey', 'cid', 'FDA']].copy()
     drug_annotations_df.columns = [
         'drug_id', 'smiles', 'inchikey', 'pubchem', 'fda_status']
 
@@ -211,12 +223,12 @@ def build_cells_df(pset_dict, tissues_df):
     @param tissues_df: [`DataFrame`] A table of all tissues in the dataset
     @return: [`DataFrame`] A table of all cell lines, mapped to tissues
     """
-    cells_df = pset_dict['cell'][['cellid', 'tissueid']]
+    cells_df = pset_dict['cell'][['cellid', 'tissueid']].copy()
     cells_df.columns = ['name', 'tissue_id']
-    cells_df['id'] = cells_df.loc[:, ('name')]  # TODO - check copy warning
+    #cells_df['id'] = cells_df.loc[:, 'name']  # TODO - check copy warning
     # maybe try cells_df.loc[:, 'id'] = cells_df[:, 'name']
 
-    return cells_df[['id', 'name', 'tissue_id']]
+    return cells_df #[['id', 'name', 'tissue_id']]
 
 #TODO
 def build_clinical_trials_df(pset_dict, drugs_df):
@@ -292,12 +304,12 @@ def build_experiments_df(pset_dict, cells_df, dataset_id):
     """
     # Extract relelvant experiment columns
     experiments_df = pset_dict['sensitivity']['info'][[
-        'exp_id', 'cellid', 'drugid']]
+        'exp_id', 'cellid', 'drugid']].copy()
 
     # Rename columns
     experiments_df.columns = ['id', 'cell_id', 'drug_id']
 
-    # Add datset_id column TODO - copy warning
+    # Add datset_id column
     experiments_df['dataset_id'] = dataset_id
 
     # Add tissue_id column by joining with cells_df
@@ -371,7 +383,7 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
 
     # Extract relevant columns
     gene_drugs_df = gene_sig_df[[
-        'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']]
+        'gene_id', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']].copy()
     # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
     # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
 
@@ -387,7 +399,7 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
     gene_drugs_df['in_clinical_trials'] = np.nan
 
     # Rename foreign key columns
-    gene_drugs_df.rename(columns={'drug': 'drug_id', 'tissue': 'tissue_id'})
+    gene_drugs_df.rename(columns={'drug': 'drug_id', 'tissue': 'tissue_id'}, inplace=True)
 
     # Don't need joins anymore because just need names not indices??
     """ # Join with genes_df
@@ -443,10 +455,10 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     @return: [`DataFrame`] The join table with all cell lines in this dataset
     """
     datasets_cells_df = pd.DataFrame(
-        {'dataset_id': dataset_id, 'cell_id': cells_df['id']})
-    datasets_cells_df['id'] = datasets_cells_df.index + 1
+        {'dataset_id': dataset_id, 'cell_id': cells_df['name']})
+    #datasets_cells_df['id'] = datasets_cells_df.index + 1
 
-    return datasets_cells_df[['id', 'dataset_id', 'cell_id']]
+    return datasets_cells_df[['dataset_id', 'cell_id']] # datasets_cells_df[['id', 'dataset_id', 'cell_id']]
 
 
 def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
@@ -462,7 +474,7 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
         molecular data type
     """
     mol_cells_df = pd.DataFrame(
-        columns=['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof'])
+        columns=['cell_id', 'dataset_id', 'mDataType', 'num_prof'])
     molecularTypes = pd.unique(gene_drugs_df['mDataType'])
 
     for mDataType in molecularTypes:
@@ -501,10 +513,9 @@ def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
     @return: [`DataFrame`] A one-row table with the summary stats for this PSet
     """
     return pd.DataFrame({
-        'id': 1,
-        'dataset_id': pset_name,
-        'cell_lines': len(pset_dfs['cell'].index),
-        'tissues': len(pset_dfs['tissue'].index),
-        'drugs': len(pset_dfs['drug'].index),
-        'experiments': len(pset_dfs['experiments'].index)
+        'dataset_id': [pset_name],
+        'cell_lines': [len(pset_dfs['cell'].index)],
+        'tissues': [len(pset_dfs['tissue'].index)],
+        'drugs': [len(pset_dfs['drug'].index)],
+        'experiments': [len(pset_dfs['experiments'].index)]
     })
