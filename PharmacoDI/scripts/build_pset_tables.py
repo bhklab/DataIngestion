@@ -33,9 +33,11 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     build_primary_tables(pset_dict, pset_dfs)
 
     # Build annotation tables
+    print('Building annotation tables...')
     build_annotation_dfs(pset_dict, pset_dfs)
 
-    # Build secondary tables - TODO simplify this further?
+    # Build secondary tables
+    print('Building secondary tables...')
     pset_dfs['cell'] = build_cells_df(pset_dict, pset_dfs['tissue'])
     pset_dfs['experiments'] = build_experiments_df(
         pset_dict, pset_dfs['cell'], pset_name)
@@ -51,6 +53,7 @@ def build_pset_tables(pset_dict, pset_name, file_path):
             gene_sig_file_path, pset_name)
 
     # Build summary/stats tables
+    print('Building summary/stats tables...')
     pset_dfs['datasets_cells'] = build_datasets_cells_df(
         pset_dict, pset_dfs['cell'], pset_name)
     if 'gene_drugs' in pset_dfs:
@@ -71,11 +74,14 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
     @return [`None`]
     """
     file_path = os.path.join(df_dir, pset_name)
+    # Make sure directory for this PSet exists
+    if not os.path.exists(file_path):
+        os.mkdir(file_path)
 
     for df_name in pset_dfs.keys():
         print(f'Writing {df_name} table to csv...')
         df = pset_dfs[df_name]
-        # TODO - try this
+        
         df.index.rename('id', inplace=True)
 
         df_path = os.path.join(file_path, df_name)
@@ -89,14 +95,14 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
 
         if len(df.index) < dask_threshold:
             # Use pandas to convert df to csv
-            df.to_csv(os.path.join(file_path, df,
-                                   f'{pset_name}_{df}.csv'), index=False)
+            df.to_csv(os.path.join(df_path,
+                f'{pset_name}_{df_name}.csv'), index=True)
         else:
             # Convert pandas df into dask df TODO - adjust chunksize if needed
             dask_df = dd.from_pandas(df, chunksize=500000)
             # Write dask_df to csv
             dd.to_csv(dask_df, os.path.join(
-                df_path, f'{pset_name}_{df_name}-*.csv'))
+                df_path, f'{pset_name}_{df_name}-*.csv'), index=True)
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -349,6 +355,8 @@ def build_experiments_df(pset_dict, cells_df, dataset_id):
         experiments_df, cells_df[['name', 'tissue_id']], left_on='cell_id', right_on='name',
         how='left')[['experiment_id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id']]
 
+    experiments_df.rename(columns={'experiment_id': 'name'}, inplace=True)
+
     return experiments_df
 
 
@@ -487,7 +495,7 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     @return: [`DataFrame`] The join table with all cell lines in this dataset
     """
     datasets_cells_df = pd.DataFrame(
-        {'dataset_id': dataset_id, 'cell_id': cells_df['id']})
+        {'dataset_id': dataset_id, 'cell_id': cells_df['name']})
     datasets_cells_df['id'] = datasets_cells_df.index + 1
 
     # datasets_cells_df[['id', 'dataset_id', 'cell_id']]
@@ -538,7 +546,7 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
     # Replace any NaN in the num_profiles column with 0
     mask = mol_cells_df.query('num_prof.isna()').index
     mol_cells_df.loc[mask, 'num_prof'] = 0
-    mol_cells_df['num_prof'].astype(int, copy=False)
+    mol_cells_df['num_prof'].astype('int32', copy=False)
 
     return mol_cells_df
 
@@ -554,10 +562,9 @@ def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
     @return: [`DataFrame`] A one-row table with the summary stats for this PSet
     """
     return pd.DataFrame({
-        'id': 1,
-        'dataset_id': pset_name,
-        'cell_lines': len(pset_dfs['cell'].index),
-        'tissues': len(pset_dfs['tissue'].index),
-        'drugs': len(pset_dfs['drug'].index),
-        'experiments': len(pset_dfs['experiments'].index)
+        'dataset_id': [pset_name],
+        'cell_lines': [len(pset_dfs['cell'].index)],
+        'tissues': [len(pset_dfs['tissue'].index)],
+        'drugs': [len(pset_dfs['drug'].index)],
+        'experiments': [len(pset_dfs['experiments'].index)]
     })
