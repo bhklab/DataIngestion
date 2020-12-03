@@ -7,6 +7,10 @@ rPharmacoDI/data/rawdata/*
 rPharmacoDI/data/metadata/*
 rPharmacoDI/scripts
 **.deprecated
+PharmacoDI/data/latest/*
+PharmacoDI/data/procdata/*
+.*_pycache
+.*Rprofile
 
 # Exceptions
 !PharmacoDI/data/metadata/getMetadata.sh
