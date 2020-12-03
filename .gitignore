@@ -9,7 +9,7 @@ rPharmacoDI/scripts
 **.deprecated
 PharmacoDI/data/latest/*
 PharmacoDI/data/procdata/*
-.*_pycache
+PharmacoDI/scripts/__pycache__/*
 .*Rprofile
 
 # Exceptions
