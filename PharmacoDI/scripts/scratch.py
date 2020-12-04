@@ -5,14 +5,14 @@ import numpy as np
 import pandas as pd
 import dask.dataframe as dd
 
-#TODO - ask about file structure (procdata/pset/tissue) or (procdata/tissue/pset)
 
 read_file_path = os.path.join('data', 'procdata')
-write_file_path = os.path.join('data') # TODO - ????
+write_file_path = os.path.join('data', 'latest')
+psets = ['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1',
+         'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']
 
-# TODO - write function to load a table
-# from all psets; return in a list (?)
-def load_tables(name, file_path):
+
+def load_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1', 'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']):
     """
     Given the name of a table and a file_path to all PSet tables,
     read all the tables into DataFrames and return a list.
@@ -22,16 +22,22 @@ def load_tables(name, file_path):
     :return: list[DataFrame] - List of Dask DataFrames, one from each PSet
     """
     dfs = []
-    # Get all psets with this table
-    psets = glob.glob(os.path.join(file_path, name))
-    # Read csv files for each pset
+
     for pset in psets:
-        dfs.append(dd.read_csv(f'{os.path.join(file_path, name, pset)}/{pset}_{name}-*-*.csv')) #TODO - modify
+        # Check that this pset has this table
+        pset_path = os.path.join(file_path, pset, name)
+        if os.path.exists(pset_path):
+            if len(os.listdir(pset_path)) == 1:
+                # Written as a single CSV file with pandas read_csv
+                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}.csv'))
+            else:
+                # Written as many CSVs with Dask
+                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}-*.csv'))
 
     return dfs
 
 
-def concat_tables(df_list):
+def concat_tables(df_list, chunksize=500000):
     """
     Concatenate all DataFrames in df_list. Also drops duplicate rows
     and resets index to start at 1 and increment each row.
@@ -40,47 +46,151 @@ def concat_tables(df_list):
     :return: DataFrame A single DataFrame containing all rows of the dfs in df_list
     """
     # Dask concat all dfs in df_list
-    df = dd.concat(df_list, interleave_partitions=True).compute() #TODO - read more on this to make sure you're using it correctly
-    # Drop duplicate rows (inplace parameter not supported in Dask)
+    df = dd.concat(df_list)
+
+    # Drop id column (old index)
+    df = df.drop('id', axis=1)
+
+    # Drop duplicate rows
     df = df.drop_duplicates()
-    # Reindex
-    df.reset_index(drop=True)
-    df.index += 1 #TODO - see if this works
+
+    # Repartition into partitions, each with chunksize rows
+    num_rows = df.shape[0].compute()  # This may take a while
+    df = df.repartition(npartitions=(num_rows // chunksize + 1))
 
     return df
 
 
-# ? 
-def write_df(df, file_path):
-    pass
+def write_table(df, name, file_path, chunksize=500000):
+    """
+    Write table to file_path
+    """
+    # Reindex
+    if df.npartitions > 1:
+        n = df.npartitions
+        df = df.repartition(npartitions=1)
+        df = df.reset_index(drop=True)
+        df = df.repartition(npartitions=n)
+    else:
+        df = df.reset_index(drop=True)
+
+    # Increment index by 1 and rename
+    df.index += 1
+    df.index = df.index.rename('id')
+
+    df_path = os.path.join(file_path, name)
+    # Check that directory exists
+    if not os.path.exists(df_path):
+        os.mkdir(df_path)
+    else:
+        # Clear all old files
+        for f in os.listdir(df_path):
+            os.remove(os.path.join(df_path, f))
+
+    # Write to CSV
+    dd.to_csv(df, os.path.join(df_path, f'{name}-*.csv'))
 
 
-# TODO - do I need this function
 def load_concat_write(name, read_file_path, write_file_path):
     df_list = load_tables(name, read_file_path)
     df = concat_tables(df_list)
-    write_df(df, write_file_path)
+    write_table(df, name, write_file_path)
     # TODO - how to remove sthg from memory to clear up space once you write to disk
+    # should clear automatically after function terminates
 
 
-# start script
-
-# Primary tables can just be concatenated and written to disk
-load_concat_write('tissue', read_file_path, write_file_path)
-load_concat_write('drug', read_file_path, write_file_path)
-load_concat_write('gene', read_file_path, write_file_path)
-load_concat_write('dataset', read_file_path, write_file_path) # This seems extra
-
-# Now the fun part starts
+# I shouldn't do this because i'm making it run longer?
 def load_join_table(name, file_path):
     df_files = glob.glob(os.path.join(file_path, name))
     if len(df_files) == 0:
         print('ERROR cannot find the join table')
         #raise ValueError
-    return dd.read_csv(f'{os.path.join(file_path, name, name)}-*-*.csv)
-    
 
-cell_df_list = load_tables('cell', read_file_path)
-cell_df = concat_tables(cell_df_list)
-tissue_df = load_join_table('tissue', write_file_path)
-# TODO - join ! 
+    return dd.read_csv(f'{os.path.join(file_path, name, name)}-*.csv')
+
+
+def safe_merge(df1, df2, fk_name, right_on='name'):
+    """
+    Will always perform left join
+    By default will join on 'name' in df2
+    Will always delete join columns
+    Will rename id column from df2 to fk_name
+    Will check that left join worked well
+    """
+    # TEMP
+    if fk_name == 'experiments_id':
+        fk_name = 'experiment_id'
+    # Make copy of relevant cols of df2 so you don't have to drop all the other ones after merge
+    df2 = df2[['id', right_on]].copy()
+    # Rename df2 FK column to avoid naming conflicts (since df1 will probably have 'name' col too)
+    df2 = df2.rename(columns={right_on: f'{fk_name}_{right_on}'})
+    right_on = f'{fk_name}_{right_on}'
+
+    # Join DataFrames
+    # NOTE: this automatically resets the index, so it starts at 0 and doesn't have the name 'id'
+    join_df = dd.merge(df1, df2, left_on=fk_name,
+                       right_on=right_on, how='left')
+
+    # Remove join columns
+    join_df = join_df.drop(columns=[fk_name, right_on])
+    # Rename df2 id col to fk_name
+    join_df = join_df.rename(columns={'id': fk_name})
+
+    # Check if any rows did not join properly with dataset
+    # can't do this with variable? ---  join_df.query('dataset_id.isna()')
+    # TODO - consider using validate param instead; consider throwing an error
+    if join_df[join_df[fk_name].isna()].shape[0].compute() > 0:
+        print(f'ERROR - some rows did not join to a {fk_name}!')
+
+    return join_df
+
+
+def load_join_write(name, fks, read_file_path, write_file_path):
+    # Load and concatenate all 'name' tables for all PSets
+    df_list = load_tables(name, read_file_path)
+    df = concat_tables(df_list)
+
+    # Load each join table and join with it
+    for fk in fks:
+        join_df = load_join_table(fk, write_file_path)
+        df = safe_merge(df, join_df, f'{fk}_id')
+
+    # Write to disk
+    write_table(df, name, write_file_path)
+
+
+# TODO - similar names to build_pset_tables, should I change it to be clearer?
+def build_primary_tables(read_file_path, write_file_path):
+    # Primary tables can just be concatenated and written to disk
+    load_concat_write('tissue', read_file_path, write_file_path)
+    load_concat_write('drug', read_file_path, write_file_path)
+    load_concat_write('gene', read_file_path, write_file_path)
+    load_concat_write('dataset', read_file_path, write_file_path)
+
+
+def build_secondary_tables(read_file_path, write_file_path):
+    # Other tables need to be joined to get their foreign keys
+    load_join_write('cell', ['tissue'], read_file_path, write_file_path)
+    load_join_write('datasets_cells', [
+                    'dataset', 'cell'], read_file_path, write_file_path)
+    load_join_write('drug_annotations', [
+                    'drug'], read_file_path, write_file_path)
+    #load_join_write('gene_annotations', ['gene'], read_file_path, write_file_path)
+    # symbol col causing issues with dtype; i think because lots of vals missing
+    load_join_write('experiments', [
+                    'cell', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
+    # reading experiment
+    load_join_write('dose_responses', [
+                    'experiments'], read_file_path, write_file_path)
+    load_join_write('profiles', ['experiments'],
+                    read_file_path, write_file_path)
+
+    # TODO: drop name col from experiments
+
+    load_join_write('mol_cells', ['cell', 'dataset'],
+                    read_file_path, write_file_path)
+
+
+# TODO - need to load non-pset-specific tables and join those
+# del or if it's inside a fxn then it's fine
+# TODO - figure out singular and plural; just choose one and then fix EDR
