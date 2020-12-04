@@ -2,7 +2,7 @@ import os
 from PharmacoDI.read_pset import pset_df_to_nested_dict, read_pset
 from scripts.build_pset_tables import build_pset_tables
 
-pset_names = ['CCLE', 'GDSC_v1', 'GDSC_v2', 'CTRPv2', 'FIMM', 'gCSI', 'GRAY', 'UHNBreast']
+pset_names = ['GDSC_v1', 'GDSC_v2', 'CTRPv2', 'FIMM', 'gCSI', 'GRAY', 'CCLE', 'UHNBreast']
 
 pset_file_path = os.path.join('data', 'rawdata')
 procdata_file_path = os.path.join('data', 'procdata')
@@ -13,4 +13,4 @@ for pset_name in pset_names:
     build_pset_tables(pset_dict, pset_name, procdata_file_path)
 
 
-# TODO - process all tables that are not pset specific
+# TODO: clear memory after this
