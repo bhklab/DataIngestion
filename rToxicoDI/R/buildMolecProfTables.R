@@ -61,6 +61,8 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     gene_dataset <- unique(gene[, .(gene_id, dataset_id)])
     gene[, dataset_id := NULL]
     gene <- unique(gene)
+    # Dropping duplicate gene ids caused by 1:many relationship with transcripts
+    gene <- gene[!duplicated(gene_id)]
     gene[, id := seq_len(.N)]
 
     # gene annotation table
@@ -187,9 +189,14 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     gene_synonym <- na.omit(gene_synonym)
     setnames(gene_synonym, c('id', 'Synonyms'), c('gene_id', 'synonym'))
 
+    # -- sanity checks
     if (!all(gene_synonym$id %in% gene$id))
-        stop(.errorMsg(.conext(), 'Gene id in gene_synonym not in gene,
+        stop(.errorMsg(.context(), 'Gene id in gene_synonym not in gene,
             please proceed to panic!'))
+
+    # sanity check
+    if (any(isDuplicated(gene$name)))
+        stop(.errorMsg(.context(), 'Duplicated gene names!'))
 
     # -- write to disk
     for (table in c('gene', 'gene_dataset', 'compound_gene_response',
