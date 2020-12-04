@@ -98,7 +98,7 @@ def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
             df.to_csv(os.path.join(df_path,
                 f'{pset_name}_{df_name}.csv'), index=True)
         else:
-            # Convert pandas df into dask df TODO - adjust chunksize if needed
+            # Convert pandas df into dask df
             dask_df = dd.from_pandas(df, chunksize=500000)
             # Write dask_df to csv
             dd.to_csv(dask_df, os.path.join(
@@ -315,7 +315,8 @@ def build_dose_response_df(pset_dict, experiment_df):
     dose_response_df = pd.merge(
         dose, response, left_index=True, right_index=True).reset_index()
 
-    dose_response_df.rename(columns={'.exp_id': 'experiment_id'}, inplace=True)
+    dose_response_df.rename(columns={'.exp_id': 'experiments_id'}, inplace=True)
+    dose_response_df.drop('dose_id', inplace=True)
 
     # Not necessary since merging will occur after we join all PSets
     #dose_response_df.set_index('exp_id', inplace=True)
@@ -371,12 +372,12 @@ def build_profiles_df(pset_dict):
     if 'E_inf' in pset_dict['sensitivity']['profiles'].columns:
         profiles_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'HS', 'E_inf', 'EC50']].copy()
-        profiles_df.rename(columns={'.rownames': 'experiment_id', 'aac_recomputed': 'AAC',
+        profiles_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC',
                                     'ic50_recomputed': 'IC50', 'E_inf': 'Einf'}, inplace=True)
     else:
         profiles_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'slope_recomputed', 'einf', 'ec50']].copy()
-        profiles_df.rename(columns={'.rownames': 'experiment_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
+        profiles_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
                                     'ic50_recomputed': 'IC50', 'einf': 'Einf', 'ec50': 'EC50'}, inplace=True)
 
     # Add DSS columns - TODO get these values when they are eventually computed
@@ -384,7 +385,7 @@ def build_profiles_df(pset_dict):
     profiles_df['DSS2'] = np.nan
     profiles_df['DSS3'] = np.nan
 
-    return profiles_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
+    return profiles_df[['experiments_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
 
 
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
