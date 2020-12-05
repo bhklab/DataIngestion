@@ -1,6 +1,9 @@
+^renv$
+^renv\.lock$
 # ignore
 metadata/*
 scripts/*
 procdata/*
 tSets/*
 renv.lock
+latest/*

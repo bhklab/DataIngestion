@@ -5,6 +5,8 @@ tSets/*
 *.RData
 scripts/*
 procdata/*
+rawdata/*
+latest/*
 
 # EXCEPTIONS
 !results/placeholder.txt

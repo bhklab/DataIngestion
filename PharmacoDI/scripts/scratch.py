@@ -179,17 +179,23 @@ def build_secondary_tables(read_file_path, write_file_path):
     # symbol col causing issues with dtype; i think because lots of vals missing
     load_join_write('experiments', [
                     'cell', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
-    # reading experiment
     load_join_write('dose_responses', [
                     'experiments'], read_file_path, write_file_path)
     load_join_write('profiles', ['experiments'],
                     read_file_path, write_file_path)
 
-    # TODO: drop name col from experiments
+    # Drop experiment name from table
+    experiment_df = load_join_table('experiments', write_file_path)
+    experiment_df = experiment_df.drop(columns=['name'])
+    experiment_df.set_index('id', drop=True)
+    write_table(experiment_df, 'experiments', write_file_path) 
+    # for whatever reason this throws a file not found error even though it's the exact same write_fxn
 
     load_join_write('mol_cells', ['cell', 'dataset'],
                     read_file_path, write_file_path)
+    load_join_write('gene_drugs', ['gene', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
 
+# mol_cells has Kallisto. not sure why. from CTRPv2
 
 # TODO - need to load non-pset-specific tables and join those
 # del or if it's inside a fxn then it's fine

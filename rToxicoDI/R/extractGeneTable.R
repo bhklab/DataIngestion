@@ -10,12 +10,12 @@
 #' @export
 extractGeneTable <- function(tSet, outDir=tempdir(), fileName=name(tSet)) {
 
-    # handle errors
-    context <- .getExecutionContext()
-    context <- paste0(context, collapse='::')
+    # # handle errors
+    # context <- .getExecutionContext()
+    # context <- paste0(context, collapse='::')
 
     if (!is(tSet, 'ToxicoSet'))
-        stop(context, ' tSet must be a ToxicoSet object!')
+        stop(' tSet must be a ToxicoSet object!')
 
     # ensure the save directory exits
     if (!dir.exists(outDir)) dir.create(outDir, recursive=TRUE)

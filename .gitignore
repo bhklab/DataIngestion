@@ -11,6 +11,7 @@ PharmacoDI/data/latest/*
 PharmacoDI/data/procdata/*
 PharmacoDI/scripts/__pycache__/*
 .*Rprofile
+renv
 
 # Exceptions
 !PharmacoDI/data/metadata/getMetadata.sh

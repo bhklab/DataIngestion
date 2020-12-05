@@ -195,7 +195,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
             please proceed to panic!'))
 
     # sanity check
-    if (any(isDuplicated(gene$name)))
+    if (any(duplicated(gene$name)))
         stop(.errorMsg(.context(), 'Duplicated gene names!'))
 
     # -- write to disk
