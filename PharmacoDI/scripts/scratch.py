@@ -195,8 +195,27 @@ def build_secondary_tables(read_file_path, write_file_path):
                     read_file_path, write_file_path)
     load_join_write('gene_drugs', ['gene', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
 
+    # Load target table and join to gene table
+    target_df = load_join_table('target', read_file_path) # if this works then i should rename the fxn
+    gene_df = load_join_table('gene', write_file_path)
+    target_df = safe_merge(target_df, gene_df, 'gene')
+    del gene_df # Remove from memory once join is complete (TODO - more of this)
+
+    # Load drug_targets table and join to target table
+    drug_targets_df = load_join_table('drug_targets', read_file_path)
+    drug_df = load_join_table('drug', write_file_path)
+    drug_targets_df = safe_merge(drug_targets_df, drug_df, 'drug')
+    drug_targets_df = safe_merge(drug_targets_df, target_df, 'target')
+    del drug_df
+
+    write_table(target_df, 'target', write_file_path)
+    write_table(drug_targets_df, 'drug_targets', write_file_path)
+
+
 # mol_cells has Kallisto. not sure why. from CTRPv2
 
 # TODO - need to load non-pset-specific tables and join those
 # del or if it's inside a fxn then it's fine
 # TODO - figure out singular and plural; just choose one and then fix EDR
+# TODO - refactor so you're not loading join tables so many times
+# TODO - load cellosaurus
