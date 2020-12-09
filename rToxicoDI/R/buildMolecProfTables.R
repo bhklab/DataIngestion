@@ -52,7 +52,8 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     cell <- fread(file.path(outDir, 'cell.csv'))
 
     # -- build gene tables
-
+    ## TODO:: Change the join assigns to merge.data.table to prevent slow coercions to 
+    #  the correct column type.
     gene <- rbindlist(geneTables)
     gene[, gene_id := gsub('_at', '', gene_id)]
     gene$dataset_id <- unlist(mapply(rep, x=names(geneTables),
@@ -155,7 +156,10 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     setkeyv(analysis, c('compound_id', 'dose', 'time', 'cell_id', 'dataset_id'))
     setkeyv(sample, c('compound_id', 'dose', 'time', 'cell_id', 'dataset_id'))
     ## TODO:: Maybe I want to map all replicates to a single analysis_id?
-    analysis[sample, sample_id := i.id]
+    analysis <- merge.data.table(analysis, 
+        sample[, c('id', 'compound_id', 'dose', 'time', 'cell_id', 'dataset_id')], 
+        allow.cartesian=TRUE)
+    setnames(analysis, c('id.x', 'id.y'), c('id', 'sample_id'))
 
     analysis[, `:=`(sample_id=as.integer(sample_id),
         dataset_id=NULL, dose=NULL, time=NULL, cell_id=NULL, compound_id=NULL)]
@@ -169,6 +173,20 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     nullRow <- data.table(id=0)
     analysis[, `:=`(gene_id=NULL, sample_id=NULL)]
     analysis <- rbindlist(list(analysis, nullRow), fill=TRUE)
+
+    # remove sample id and drop duplicate rows
+    analysis <- unique(analysis[, sample_id := NULL])
+
+    # sanity checks
+    if (any(duplicate(analysis$id)))
+        stop("Duplicate primary key in analysis table after mapping to samples!")
+    if (!all(analysis$id %in% compound_gene_response$analysis_id))
+        stop("Dropped some analysis ids when joining with compound_gene_response. It is appropriate to PANIC!")
+    if (any(is.na(compound_gene_response$analysis_id))
+        stop("NAs found in analysis_id column of compound_gene_response! EGATS!")
+    if (!all(sample$id %in% unique(compound_gene_response$sample_id)))
+        stop("Some samples are missing from compound_gene_response! Things have gone terribly wrong!"
+
 
     # -- sort tables before writing to disk
     setorderv(analysis, 'id')

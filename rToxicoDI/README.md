@@ -1,15 +1,20 @@
-# ToxicoDB
-ToxicoDB web app
+# ToxicoDI
 
-## Database Tables
+An R package for building ToxicoDB database tables from a list of ToxicoSet objects.
 
-This branch holds the scripts used to regenerate the ToxicoDB database tables from ToxicoSet R objects using the ToxicoGx R package.
+## Usage
 
-### Instructions
+```{r}
+library(ToxicoDI)
 
-1. Download the tSets you wish to use into the tSets directory
-2. Open R or Rstudio
-3. Change into the scripts directory: `setwd(scripts)`
-4. Run `O_runTableGenerationPipeline.R`
-5. Final csv files of tables are tagged `_latest.csv`
-6. Upload to MySQL using your migration scripts
+# Get individual tables from each TSet and write them to procdata
+extractAllTables(path='tSets',
+    pattern='EM.*rds|.*ldh.*rds|.*drugMatrix.*rds', 
+    outDir='procdata')
+
+# Perform joins on  individual PSet tables to get the final database tables.
+buildAllTables()
+
+# Results will be written to the 'latest' directory.
+
+```
