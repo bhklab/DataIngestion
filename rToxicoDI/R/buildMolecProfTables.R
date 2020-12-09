@@ -155,7 +155,6 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
 
     setkeyv(analysis, c('compound_id', 'dose', 'time', 'cell_id', 'dataset_id'))
     setkeyv(sample, c('compound_id', 'dose', 'time', 'cell_id', 'dataset_id'))
-    ## TODO:: Maybe I want to map all replicates to a single analysis_id?
     analysis <- merge.data.table(analysis, 
         sample[, c('id', 'compound_id', 'dose', 'time', 'cell_id', 'dataset_id')], 
         allow.cartesian=TRUE)
@@ -175,17 +174,17 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     analysis <- rbindlist(list(analysis, nullRow), fill=TRUE)
 
     # remove sample id and drop duplicate rows
-    analysis <- unique(analysis[, sample_id := NULL])
+    analysis <- unique(analysis)
 
     # sanity checks
     if (any(duplicate(analysis$id)))
         stop("Duplicate primary key in analysis table after mapping to samples!")
     if (!all(analysis$id %in% compound_gene_response$analysis_id))
         stop("Dropped some analysis ids when joining with compound_gene_response. It is appropriate to PANIC!")
-    if (any(is.na(compound_gene_response$analysis_id))
+    if (any(is.na(compound_gene_response$analysis_id)))
         stop("NAs found in analysis_id column of compound_gene_response! EGATS!")
     if (!all(sample$id %in% unique(compound_gene_response$sample_id)))
-        stop("Some samples are missing from compound_gene_response! Things have gone terribly wrong!"
+        stop("Some samples are missing from compound_gene_response! Things have gone terribly wrong!")
 
 
     # -- sort tables before writing to disk

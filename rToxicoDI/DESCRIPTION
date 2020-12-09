@@ -27,7 +27,7 @@ Collate:
     'buildPathwayTables.R'
     'buildSampleTables.R'
     'buildSensitivityTables.R'
-    'downloadTSetData.R'
+    'downloadAllTSets.R'
     'extractAllTables.R'
     'extractAnalysisTable.R'
     'extractCompoundTable.R'
