@@ -62,7 +62,7 @@ id,name,drug_id,pubchem,chembl,drugbank,targets,carcinogenicity,class_in_vivo,cl
 61,Moxisylyte,61,4260,,,,,,,,CC(C)c1cc(OC(=O)C)c(C)cc1OCCN(C)C,VRYMTAVOXVTQEF-UHFFFAOYSA-N,MESH:D013948,NA,NA,Most-DILI
 62,Iproniazid,62,3748,,,,,,Non-Genotoxic,,CC(C)NNC(=O)c1ccncc1,NYMGNSNKLVNMIA-UHFFFAOYSA-N,MESH:D007490,NA,NA,Most-DILI
 63,Chloramphenicol,63,5959,,,,Carcinogenic,Genotoxic,Non-Genotoxic,,OC[C@@H](NC(=O)C(Cl)Cl)[C@H](O)c1ccc(cc1)[N+](=O)[O-],WIIZWVCIJKGZOK-RKDXNWHRSA-N,MESH:D002701,RAHC,2A,No-DILI
-64,Nitrofurazone,64,5447130,,,,"Remove label",Non-Genotoxic,Genotoxic,,NC(=O)N/N=C/c1ccc(o1)[N+](=O)[O-],IAIWVQXQOWNYOU-FPYGCLRLSA-N,MESH:D009583,NA,3,NA
+64,Nitrofurazone,64,5447130,,,,,Non-Genotoxic,Genotoxic,,NC(=O)N/N=C/c1ccc(o1)[N+](=O)[O-],IAIWVQXQOWNYOU-FPYGCLRLSA-N,MESH:D009583,NA,3,NA
 65,Trimipramine,65,5584,,,,,,,,CC(CN(C)C)CN1c2ccccc2CCc3ccccc13,ZSCDBOWYZJWBIY-UHFFFAOYSA-N,MESH:D014299,NA,NA,"Ambiguous DILI"
 66,Amitriptyline,66,2160,,,,,,Non-Genotoxic,,CN(C)CCC=C1c2ccccc2CCc3ccccc13,KRMDCWKBEZIMAB-UHFFFAOYSA-N,MESH:D000639,NA,NA,Less-DILI
 67,Hydroxyzine,67,3658,,,,,,,,OCCOCCN1CCN(CC1)[C@H](c2ccccc2)c3ccc(Cl)cc3,ZQDWXGKKHFNSQK-UHFFFAOYSA-N,MESH:D006919,NA,NA,No-DILI
