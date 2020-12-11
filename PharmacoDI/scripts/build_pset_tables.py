@@ -130,14 +130,14 @@ def build_gene_table(pset_dict):
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] The gene table
     """
-    genes = pd.Series([], name='name')
+    gene_df = pd.Series([], name='name')
     for mDataType in pset_dict['molecularProfiles']:
         if 'EnsemblGeneId' in pset_dict['molecularProfiles'][mDataType]['rowData']:
-            genes = genes.append(pd.Series(pd.unique(
+            gene_df = gene_df.append(pd.Series(pd.unique(
                 pset_dict['molecularProfiles'][mDataType]['rowData']['EnsemblGeneId']), name='name'))
 
-    genes.drop_duplicates(inplace=True)
-    return genes  # pd.DataFrame({'id': genes, 'name': genes})
+    gene_df.drop_duplicates(inplace=True)
+    return gene_df
 
 
 def build_tissue_table(pset_dict):
@@ -147,8 +147,8 @@ def build_tissue_table(pset_dict):
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] The tissue table
     """
-    tissues = pd.Series(pd.unique(pset_dict['cell']['tissueid']), name='name')
-    return tissues  # pd.DataFrame({'id': tissues, 'name': tissues})
+    tissue_df = pd.Series(pd.unique(pset_dict['cell']['tissueid']), name='name')
+    return tissue_df
 
 
 # Make drugs df; TODO - confirm whether to use drugid (?) or DRUG_NAME (targets)
@@ -159,8 +159,8 @@ def build_drug_table(pset_dict):
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] The drug table
     """
-    drugs = pd.Series(pd.unique(pset_dict['drug']['drugid']), name='name')
-    return drugs  # pd.DataFrame({'id': drugs, 'name': drugs})
+    drug_df = pd.Series(pd.unique(pset_dict['drug']['drugid']), name='name')
+    return drug_df 
 
 
 # --- ANNOTATION TABLES -----------------------------------------------------------------------
@@ -255,10 +255,8 @@ def build_cell_df(pset_dict, tissues_df):
     cell_df = pset_dict['cell'][['cellid', 'tissueid']].copy()
     cell_df.rename(columns={'cellid': 'name',
                              'tissueid': 'tissue_id'}, inplace=True)
-    # cells_df['id'] = cells_df.loc[:, 'name']  # TODO - check copy warning
-    # maybe try cells_df.loc[:, 'id'] = cells_df[:, 'name']
 
-    return cell_df  # [['id', 'name', 'tissue_id']]
+    return cell_df
 
 # TODO
 
@@ -317,16 +315,6 @@ def build_dose_response_df(pset_dict, experiment_df):
 
     dose_response_df.rename(columns={'.exp_id': 'experiments_id'}, inplace=True)
     dose_response_df.drop('dose_id', inplace=True)
-
-    # Not necessary since merging will occur after we join all PSets
-    #dose_response_df.set_index('exp_id', inplace=True)
-    #experiment_df.set_index('exp_id', inplace=True)
-
-    # dose_response_df = pd.merge(dose_response_df, experiment_df[['id']],
-    #                            right_index=True, left_index=True).reset_index()
-    #dose_response_df.drop('exp_id', 1, inplace=True)
-    #dose_response_df.rename(columns={'id': 'experiment_id'}, inplace=True)
-    #dose_response_df.index = dose_response_df.index + 1
 
     return dose_response_df
 
@@ -442,29 +430,6 @@ def build_gene_drug_df(gene_sig_file_path, pset_name):
     gene_drug_df.rename(
         columns={'gene': 'gene_id', 'drug': 'drug_id', 'tissue': 'tissue_id'}, inplace=True)
 
-    # Don't need joins anymore because just need names not indices??
-    """ # Join with genes_df
-    gene_drugs_df = pd.merge(genes_df, gene_drugs_df,
-                             left_on='name', right_on='gene_id', how='right')
-    # Drop gene name columns after merge & rename 'id' column
-    gene_drugs_df.drop(['name', 'gene_id'], axis='columns', inplace=True)
-    gene_drugs_df.rename(columns={"id": "gene_id"}, inplace=True)
-
-    # Join with drugs_df
-    gene_drugs_df = pd.merge(drugs_df, gene_drugs_df,
-                             left_on='name', right_on='drug', how='right')
-    # TODO - this merges better on drugid than DRUG_NAME
-    # Drop drug name columns after merge & rename 'id' column
-    gene_drugs_df.drop(['name', 'drug'], axis='columns', inplace=True)
-    gene_drugs_df.rename(columns={"id": "drug_id"}, inplace=True)
-
-    # Join with tissues_df
-    gene_drugs_df = pd.merge(gene_drugs_df, tissues_df,
-                             left_on='tissue', right_on='name', how='left')
-    # Drop tissue name columns after merge & rename 'id' column
-    gene_drugs_df.drop(['name', 'tissue'], axis='columns', inplace=True)
-    gene_drugs_df.rename(columns={"id": "tissue_id"}, inplace=True) """
-
     # Add dataset id
     gene_drug_df['dataset_id'] = pset_name
 
@@ -499,7 +464,6 @@ def build_dataset_cell_df(pset_dict, cell_df, dataset_id):
         {'dataset_id': dataset_id, 'cell_id': cell_df['name']})
     dataset_cell_df['id'] = dataset_cell_df.index + 1
 
-    # datasets_cells_df[['id', 'dataset_id', 'cell_id']]
     return dataset_cell_df[['dataset_id', 'cell_id']]
 
 
