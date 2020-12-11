@@ -239,30 +239,30 @@ def build_secondary_tables(primary_dfs, read_file_path, write_file_path):
     """
     # Other tables need to be joined to get their foreign keys
     load_join_write('cell', ['tissue'], read_file_path, write_file_path)
-    load_join_write('datasets_cells', [
+    load_join_write('dataset_cell', [
                     'dataset', 'cell'], read_file_path, write_file_path)
-    load_join_write('drug_annotations', [
+    load_join_write('drug_annotation', [
                     'drug'], read_file_path, write_file_path)
-    #load_join_write('gene_annotations', ['gene'], read_file_path, write_file_path)
+    #load_join_write('gene_annotation', ['gene'], read_file_path, write_file_path)
     # symbol col causing issues with dtype; i think because lots of vals missing
-    load_join_write('experiments', [
+    load_join_write('experiment', [
                     'cell', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
-    load_join_write('dose_responses', [
-                    'experiments'], read_file_path, write_file_path)
-    load_join_write('profiles', ['experiments'],
+    load_join_write('dose_response', [
+                    'experiment'], read_file_path, write_file_path)
+    load_join_write('profile', ['experiment'],
                     read_file_path, write_file_path)
 
     # Drop experiment name from table
-    experiment_df = load_join_table('experiments', write_file_path)
+    experiment_df = load_join_table('experiment', write_file_path)
     experiment_df = experiment_df.drop(columns=['name'])
     experiment_df.set_index('id', drop=True)
-    write_table(experiment_df, 'experiments', write_file_path)
+    write_table(experiment_df, 'experiment', write_file_path)
     # for whatever reason this throws a file not found error even though it's the exact same write_fxn
 
-    load_join_write('mol_cells', ['cell', 'dataset'],
+    load_join_write('mol_cell', ['cell', 'dataset'],
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('gene_drugs', [
+    load_join_write('gene_drug', [
                     'gene', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
 
 
@@ -277,11 +277,11 @@ def build_metadata_tables():
     del gene_df
 
     # Load drug_targets table and join to target table
-    drug_targets_df = load_join_table('drug_targets', read_file_path)
+    drug_targets_df = load_join_table('drug_target', read_file_path)
     drug_df = load_join_table('drug', write_file_path)
     drug_targets_df = safe_merge(drug_targets_df, drug_df, 'drug_id')
     drug_targets_df = safe_merge(drug_targets_df, target_df, 'target_id')
     del drug_df
 
     write_table(target_df, 'target', write_file_path)
-    write_table(drug_targets_df, 'drug_targets', write_file_path)
+    write_table(drug_targets_df, 'drug_target', write_file_path)
