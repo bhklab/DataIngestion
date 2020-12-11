@@ -38,26 +38,26 @@ def build_pset_tables(pset_dict, pset_name, file_path):
 
     # Build secondary tables
     print('Building secondary tables...')
-    pset_dfs['cell'] = build_cells_df(pset_dict, pset_dfs['tissue'])
-    pset_dfs['experiments'] = build_experiments_df(
+    pset_dfs['cell'] = build_cell_df(pset_dict, pset_dfs['tissue'])
+    pset_dfs['experiment'] = build_experiment_df(
         pset_dict, pset_dfs['cell'], pset_name)
     # pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug']) # TODO - API
-    pset_dfs['dose_responses'] = build_dose_response_df(
-        pset_dict, pset_dfs['experiments'])
-    pset_dfs['profiles'] = build_profiles_df(pset_dict)
+    pset_dfs['dose_response'] = build_dose_response_df(
+        pset_dict, pset_dfs['experiment'])
+    pset_dfs['profile'] = build_profile_df(pset_dict)
 
     # Build gene drugs table
     if os.path.exists(os.path.join(gene_sig_file_path, pset_name)):
-        print('Building gene drugs table...')
-        pset_dfs['gene_drugs'] = build_gene_drugs_df(
+        print('Building gene drug table...')
+        pset_dfs['gene_drug'] = build_gene_drug_df(
             gene_sig_file_path, pset_name)
 
     # Build summary/stats tables
     print('Building summary/stats tables...')
-    pset_dfs['datasets_cells'] = build_datasets_cells_df(
+    pset_dfs['dataset_cells'] = build_dataset_cell_df(
         pset_dict, pset_dfs['cell'], pset_name)
     if 'gene_drugs' in pset_dfs:
-        pset_dfs['mol_cells'] = build_mol_cells_df(
+        pset_dfs['mol_cells'] = build_mol_cell_df(
             pset_dict, pset_dfs['datasets_cells'], pset_dfs['gene_drugs'])
     pset_dfs['dataset_statistics'] = build_dataset_stats_df(
         pset_dict, pset_dfs, pset_name)
@@ -176,19 +176,19 @@ def build_annotation_dfs(pset_dict, pset_dfs):
     """
     # Only make gene_annotations table if gene table already exists
     if 'gene' in pset_dfs:
-        pset_dfs['gene_annotations'] = build_gene_annotations_df(pset_dict)
+        pset_dfs['gene_annotation'] = build_gene_annotation_df(pset_dict)
 
-    pset_dfs['drug_annotations'] = build_drug_annotations_df(pset_dict)
+    pset_dfs['drug_annotation'] = build_drug_annotation_df(pset_dict)
 
 
-def build_gene_annotations_df(pset_dict):
+def build_gene_annotation_df(pset_dict):
     """
     Build a table mapping each gene in a dataset to its gene annotations.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] A table of all gene annotations, mapped to genes
     """
-    gene_annotations_df = pd.DataFrame(
+    gene_annotation_df = pd.DataFrame(
         columns=['gene_id', 'symbol', 'gene_seq_start', 'gene_seq_end'])
 
     for mDataType in pset_dict['molecularProfiles']:
@@ -200,14 +200,14 @@ def build_gene_annotations_df(pset_dict):
 
         df = df[cols]
         df.rename(columns={'.features': 'gene_id', 'Symbol': 'symbol'}, inplace=True)
-        gene_annotations_df = gene_annotations_df.append(df)
+        gene_annotation_df = gene_annotation_df.append(df)
 
-    gene_annotations_df.drop_duplicates(subset=['gene_id'], inplace=True)
+    gene_annotation_df.drop_duplicates(subset=['gene_id'], inplace=True)
 
-    return gene_annotations_df
+    return gene_annotation_df
 
 
-def build_drug_annotations_df(pset_dict):
+def build_drug_annotation_df(pset_dict):
     """
     Build a table mapping each drug in a dataset to its drug annotations.
 
@@ -215,12 +215,12 @@ def build_drug_annotations_df(pset_dict):
     @return: [`DataFrame`] A table of all drug annotations, mapped to drugs
     """
     # Make drug_annotations df
-    drug_annotations_df = pset_dict['drug'][[
+    drug_annotation_df = pset_dict['drug'][[
         'rownames', 'smiles', 'inchikey', 'cid', 'FDA']].copy()
-    drug_annotations_df.rename(
+    drug_annotation_df.rename(
         columns={'rownames': 'drug_id', 'cid': 'pubchem', 'FDA': 'fda_status'}, inplace=True)
 
-    return drug_annotations_df
+    return drug_annotation_df
 
 
 # --- OTHER TABLES ----------------------------------------------------------------------------
@@ -244,7 +244,7 @@ def load_drugbank_mappings(gene_file, file_path):
 
 
 # TODO - confirm that you're using the correct cell id
-def build_cells_df(pset_dict, tissues_df):
+def build_cell_df(pset_dict, tissues_df):
     """
     Build a table containing all the cells in a dataset, mapped to their tissues.
 
@@ -252,18 +252,18 @@ def build_cells_df(pset_dict, tissues_df):
     @param tissues_df: [`DataFrame`] A table of all tissues in the dataset
     @return: [`DataFrame`] A table of all cell lines, mapped to tissues
     """
-    cells_df = pset_dict['cell'][['cellid', 'tissueid']].copy()
-    cells_df.rename(columns={'cellid': 'name',
+    cell_df = pset_dict['cell'][['cellid', 'tissueid']].copy()
+    cell_df.rename(columns={'cellid': 'name',
                              'tissueid': 'tissue_id'}, inplace=True)
     # cells_df['id'] = cells_df.loc[:, 'name']  # TODO - check copy warning
     # maybe try cells_df.loc[:, 'id'] = cells_df[:, 'name']
 
-    return cells_df  # [['id', 'name', 'tissue_id']]
+    return cell_df  # [['id', 'name', 'tissue_id']]
 
 # TODO
 
 
-def build_clinical_trials_df(pset_dict, drugs_df):
+def build_clinical_trial_df(pset_dict, drugs_df):
     """
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     """
@@ -331,7 +331,7 @@ def build_dose_response_df(pset_dict, experiment_df):
     return dose_response_df
 
 
-def build_experiments_df(pset_dict, cells_df, dataset_id):
+def build_experiment_df(pset_dict, cell_df, dataset_id):
     """
     Build a table with all the experiments in a dataset.
 
@@ -341,27 +341,27 @@ def build_experiments_df(pset_dict, cells_df, dataset_id):
     @return: [`DataFrame`] A table containing all experiments in the dataset
     """
     # Extract relelvant experiment columns
-    experiments_df = pset_dict['sensitivity']['info'][[
+    experiment_df = pset_dict['sensitivity']['info'][[
         '.rownames', 'cellid', 'drugid']].copy()
 
     # Rename columns
-    experiments_df.rename(
+    experiment_df.rename(
         columns={'.rownames': 'experiment_id', 'cellid': 'cell_id', 'drugid': 'drug_id'}, inplace=True)
 
     # Add datset_id column TODO - copy warning
-    experiments_df['dataset_id'] = dataset_id
+    experiment_df['dataset_id'] = dataset_id
 
     # Add tissue_id column by joining with cells_df
-    experiments_df = pd.merge(
-        experiments_df, cells_df[['name', 'tissue_id']], left_on='cell_id', right_on='name',
+    experiment_df = pd.merge(
+        experiment_df, cell_df[['name', 'tissue_id']], left_on='cell_id', right_on='name',
         how='left')[['experiment_id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id']]
 
-    experiments_df.rename(columns={'experiment_id': 'name'}, inplace=True)
+    experiment_df.rename(columns={'experiment_id': 'name'}, inplace=True)
 
-    return experiments_df
+    return experiment_df
 
 
-def build_profiles_df(pset_dict):
+def build_profile_df(pset_dict):
     """
     TODO: ask Chris
 
@@ -370,22 +370,22 @@ def build_profiles_df(pset_dict):
     """
     # Get profiles info
     if 'E_inf' in pset_dict['sensitivity']['profiles'].columns:
-        profiles_df = pset_dict['sensitivity']['profiles'][[
+        profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'HS', 'E_inf', 'EC50']].copy()
-        profiles_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC',
+        profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC',
                                     'ic50_recomputed': 'IC50', 'E_inf': 'Einf'}, inplace=True)
     else:
-        profiles_df = pset_dict['sensitivity']['profiles'][[
+        profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'slope_recomputed', 'einf', 'ec50']].copy()
-        profiles_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
+        profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
                                     'ic50_recomputed': 'IC50', 'einf': 'Einf', 'ec50': 'EC50'}, inplace=True)
 
     # Add DSS columns - TODO get these values when they are eventually computed
-    profiles_df['DSS1'] = np.nan
-    profiles_df['DSS2'] = np.nan
-    profiles_df['DSS3'] = np.nan
+    profile_df['DSS1'] = np.nan
+    profile_df['DSS2'] = np.nan
+    profile_df['DSS3'] = np.nan
 
-    return profiles_df[['experiments_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
+    return profile_df[['experiments_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
 
 
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
@@ -409,7 +409,7 @@ def read_gene_sig(pset_name, file_path):
     return pd.read_csv(pset_file[0])
 
 
-def build_gene_drugs_df(gene_sig_file_path, pset_name):
+def build_gene_drug_df(gene_sig_file_path, pset_name):
     """
     TODO - ask Chris to explain this table again
 
@@ -422,24 +422,24 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
     gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
 
     # Extract relevant columns
-    gene_drugs_df = gene_sig_df[[
+    gene_drug_df = gene_sig_df[[
         'gene', 'drug', 'estimate', 'n', 'pvalue', 'df', 'fdr', 'tissue', 'mDataType']].copy()
     # TODO - cannot find 'se', 'sens_stat' -- is one of these 'significant'???
     # Chris: You will determine significance based on the fdr (false discovery rate) at alpha = 0.05, it will be TRUE or FALSE (or 1 or 0)
 
     # Chris: 'se' - leave NA/Null/None for now, it will be added as a column to the gene signatures the next time we run them.
-    gene_drugs_df['se'] = np.nan
+    gene_drug_df['se'] = np.nan
     # Chris: 'sens_stat' - I will add this to the function for extracting per PSet gene signatures - for now it is always 'AAC' (Area above dose-response curve)
-    gene_drugs_df['sens_stat'] = 'AAC'
+    gene_drug_df['sens_stat'] = 'AAC'
     # TODO - cannot find 'drug_like_molecule', 'in_clinical_trials'
     # Chris: Have renamed it to tested_in_human_trials, it will indicate a 1 if it has ever been tested in a human clinical trial (even if it failed)
     # Chris: Source for this data will be clinicaltrails.gov
     # TODO - check out API, leave NA for now
-    gene_drugs_df['tested_in_human_trials'] = np.nan
-    gene_drugs_df['in_clinical_trials'] = np.nan
+    gene_drug_df['tested_in_human_trials'] = np.nan
+    gene_drug_df['in_clinical_trials'] = np.nan
 
     # Rename foreign key columns
-    gene_drugs_df.rename(
+    gene_drug_df.rename(
         columns={'gene': 'gene_id', 'drug': 'drug_id', 'tissue': 'tissue_id'}, inplace=True)
 
     # Don't need joins anymore because just need names not indices??
@@ -466,19 +466,19 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
     gene_drugs_df.rename(columns={"id": "tissue_id"}, inplace=True) """
 
     # Add dataset id
-    gene_drugs_df['dataset_id'] = pset_name
+    gene_drug_df['dataset_id'] = pset_name
 
     # Add missing columns (TODO - get this data)
-    gene_drugs_df['tstat'] = np.nan
-    gene_drugs_df['fstat'] = np.nan
-    gene_drugs_df['FWER_genes'] = np.nan
-    gene_drugs_df['FWER_drugs'] = np.nan
-    gene_drugs_df['FWER_all'] = np.nan
-    gene_drugs_df['BF_p_all'] = np.nan
-    gene_drugs_df['meta_res'] = np.nan
+    gene_drug_df['tstat'] = np.nan
+    gene_drug_df['fstat'] = np.nan
+    gene_drug_df['FWER_genes'] = np.nan
+    gene_drug_df['FWER_drugs'] = np.nan
+    gene_drug_df['FWER_all'] = np.nan
+    gene_drug_df['BF_p_all'] = np.nan
+    gene_drug_df['meta_res'] = np.nan
 
     # Reorder columns
-    return gene_drugs_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'tstat', 'fstat',
+    return gene_drug_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'tstat', 'fstat',
                           'pvalue', 'df', 'fdr', 'FWER_genes', 'FWER_drugs', 'FWER_all',
                           'BF_p_all', 'meta_res', 'dataset_id', 'sens_stat', 'tissue_id',
                           'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
@@ -486,7 +486,7 @@ def build_gene_drugs_df(gene_sig_file_path, pset_name):
 
 # --- STATS/SUMMARY TABLES -----------------------------------------------------------------------
 
-def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
+def build_dataset_cell_df(pset_dict, cell_df, dataset_id):
     """
     Builds a join table summarizing the cell lines that are in this dataset.
 
@@ -495,15 +495,15 @@ def build_datasets_cells_df(pset_dict, cells_df, dataset_id):
     @param dataset_id: [`string`] The name/id of the datset
     @return: [`DataFrame`] The join table with all cell lines in this dataset
     """
-    datasets_cells_df = pd.DataFrame(
-        {'dataset_id': dataset_id, 'cell_id': cells_df['name']})
-    datasets_cells_df['id'] = datasets_cells_df.index + 1
+    dataset_cell_df = pd.DataFrame(
+        {'dataset_id': dataset_id, 'cell_id': cell_df['name']})
+    dataset_cell_df['id'] = dataset_cell_df.index + 1
 
     # datasets_cells_df[['id', 'dataset_id', 'cell_id']]
-    return datasets_cells_df[['dataset_id', 'cell_id']]
+    return dataset_cell_df[['dataset_id', 'cell_id']]
 
 
-def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
+def build_mol_cell_df(pset_dict, dataset_cell_df, gene_drug_df):
     """
     Builds a table that summarizes the number of profiles, per cell line, per molecular data
     type, in this dataset. (Only considers molecular data types for which there are sens stats?)
@@ -515,9 +515,9 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
     @return: [`DataFrame`] The table with the number of profiles for each cell line, for each
         molecular data type
     """
-    mol_cells_df = pd.DataFrame(
+    mol_cell_df = pd.DataFrame(
         columns=['id', 'cell_id', 'dataset_id', 'mDataType', 'num_prof'])
-    molecularTypes = pd.unique(gene_drugs_df['mDataType'])
+    molecularTypes = pd.unique(gene_drug_df['mDataType'])
 
     for mDataType in molecularTypes:
         if 'molecularProfiles' in pset_dict:
@@ -526,7 +526,7 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
             )
 
             # Join with datasets cells on cellid
-            df = pd.merge(datasets_cells_df, num_profiles,
+            df = pd.merge(dataset_cell_df, num_profiles,
                           left_on='cell_id', right_on=num_profiles.index, how='left')
 
             # Rename num_profiles column
@@ -537,19 +537,19 @@ def build_mol_cells_df(pset_dict, datasets_cells_df, gene_drugs_df):
         else:
             # If PSet contains no molecular profiles, set num_prof to 0
             # for all celll lines and all molecular data types
-            df = datasets_cells_df.copy()
+            df = dataset_cell_df.copy()
             df['mDataType'] = mDataType
             df['num_prof'] = 0
 
         # Append to mol_cells_df
-        mol_cells_df = mol_cells_df.append(df)
+        mol_cell_df = mol_cell_df.append(df)
 
     # Replace any NaN in the num_profiles column with 0
-    mask = mol_cells_df.query('num_prof.isna()').index
-    mol_cells_df.loc[mask, 'num_prof'] = 0
-    mol_cells_df['num_prof'].astype('int32', copy=False)
+    mask = mol_cell_df.query('num_prof.isna()').index
+    mol_cell_df.loc[mask, 'num_prof'] = 0
+    mol_cell_df['num_prof'].astype('int32', copy=False)
 
-    return mol_cells_df
+    return mol_cell_df
 
 
 def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
