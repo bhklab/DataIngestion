@@ -239,31 +239,18 @@ def build_secondary_tables(primary_dfs, read_file_path, write_file_path):
     """
     # Other tables need to be joined to get their foreign keys
     load_join_write('cell', ['tissue'], read_file_path, write_file_path)
-    load_join_write('dataset_cell', [
-                    'dataset', 'cell'], read_file_path, write_file_path)
-    load_join_write('drug_annotation', [
-                    'drug'], read_file_path, write_file_path)
+    load_join_write('dataset_cell', ['dataset', 'cell'], 
+                        read_file_path, write_file_path)
+    load_join_write('drug_annotation', ['drug'], 
+                        read_file_path, write_file_path)
     #load_join_write('gene_annotation', ['gene'], read_file_path, write_file_path)
     # symbol col causing issues with dtype; i think because lots of vals missing
-    load_join_write('experiment', [
-                    'cell', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
-    load_join_write('dose_response', [
-                    'experiment'], read_file_path, write_file_path)
-    load_join_write('profile', ['experiment'],
-                    read_file_path, write_file_path)
-
-    # Drop experiment name from table
-    experiment_df = load_join_table('experiment', write_file_path)
-    experiment_df = experiment_df.drop(columns=['name'])
-    experiment_df.set_index('id', drop=True)
-    write_table(experiment_df, 'experiment', write_file_path)
-    # for whatever reason this throws a file not found error even though it's the exact same write_fxn
 
     load_join_write('mol_cell', ['cell', 'dataset'],
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('gene_drug', [
-                    'gene', 'drug', 'dataset', 'tissue'], read_file_path, write_file_path)
+    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], 
+                        read_file_path, write_file_path)
 
 
 def build_metadata_tables():
@@ -285,3 +272,33 @@ def build_metadata_tables():
 
     write_table(target_df, 'target', write_file_path)
     write_table(drug_targets_df, 'drug_target', write_file_path)
+
+
+def build_experiment_tables(read_file_path, write_file_path):
+    # Load all experiments from PSets
+    experiment_df = concat_tables(load_tables('experiment', read_file_path))
+
+    # Join experiment table and with primary tables
+    for fk in ['cell', 'drug', 'dataset', 'tissue']:
+        join_df = load_join_table(fk, write_file_path)  # TODO change this
+        experiment_df = safe_merge(experiment_df, join_df, f'{fk}_id')
+
+    # Reindex experiment table
+    experiment_df = reindex_table(experiment_df)
+
+    # Load and concatenate dose response and profile tables
+    dose_response_df = concat_tables(load_tables('dose_response', read_file_path))
+    profile_df = concat_tables(load_tables('profile', read_file_path))
+
+    # Join dose response and profile tables with experiment table
+    safe_merge(dose_response_df, experiment_df, 'experiment_id')
+    safe_merge(profile_df, experiment_df, 'experiment_id')
+
+    # Drop experiment name from table
+    experiment_df = experiment_df.drop(columns=['name'])
+
+    # Write experiment, dose response, and profile tables
+    write_table(experiment_df, 'experiment', write_file_path)
+    write_table(dose_response_df, 'dose_response', write_file_path)
+    write_table(profile_df, 'profile', write_file_path)
+    # TODO: test this!!!
