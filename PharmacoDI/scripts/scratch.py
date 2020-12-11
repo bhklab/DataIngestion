@@ -175,7 +175,7 @@ def safe_merge(df1, df2, fk_name, right_on='name'):
     return join_df
 
 
-def load_join_write(name, fks, read_file_path, write_file_path):
+def load_join_write(name, fks, primary_dfs, read_file_path, write_file_path):
     """
     Given the name to a table and a list of its foreign keys, load
     all PSet tables of that name from read_file_path, concatenate 
@@ -183,19 +183,20 @@ def load_join_write(name, fks, read_file_path, write_file_path):
     tables, and write the final DataFrame to write_file_path.
 
     @param name: [`string`] The name of the table
-    @param fks: [`list(string)`]
+    @param fks: [`list(string)`] A list of tables to be joined with
+    @param primary_dfs: [`dict(DataFrame)`] A dictionary of primary tables
+                        to be joined to to build foreign keys
     @param read_file_path: [`string`] The file path to the PSet tables
     @param write_file_path: [`string`] The file path to the final tables
     @return: [`DataFrame`] The final DataFrame that was written to disk
     """
-    # TODO params will have to change because we are no longer loading tables
     # Load and concatenate all 'name' tables for all PSets
     df_list = load_tables(name, read_file_path)
     df = concat_tables(df_list)
 
-    # Load each join table and join with it
+    # Build all foreign keys by joining with primary tables
     for fk in fks:
-        join_df = load_join_table(fk, write_file_path)  # TODO change this
+        join_df = primary_dfs[fk]
         df = safe_merge(df, join_df, f'{fk}_id')
 
     # Reindex the final table and write to disk
@@ -238,18 +239,18 @@ def build_secondary_tables(primary_dfs, read_file_path, write_file_path):
     @param write_file_path: [`string`] The file path to the final tables
     """
     # Other tables need to be joined to get their foreign keys
-    load_join_write('cell', ['tissue'], read_file_path, write_file_path)
-    load_join_write('dataset_cell', ['dataset', 'cell'], 
+    load_join_write('cell', ['tissue'], primary_dfs, read_file_path, write_file_path)
+    load_join_write('dataset_cell', ['dataset', 'cell'], primary_dfs,
                         read_file_path, write_file_path)
-    load_join_write('drug_annotation', ['drug'], 
+    load_join_write('drug_annotation', ['drug'], primary_dfs,
                         read_file_path, write_file_path)
     #load_join_write('gene_annotation', ['gene'], read_file_path, write_file_path)
     # symbol col causing issues with dtype; i think because lots of vals missing
 
-    load_join_write('mol_cell', ['cell', 'dataset'],
+    load_join_write('mol_cell', ['cell', 'dataset'], primary_dfs,
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], 
+    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], primary_dfs,
                         read_file_path, write_file_path)
 
 
