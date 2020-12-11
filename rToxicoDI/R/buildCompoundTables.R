@@ -104,6 +104,9 @@ buildCompoundTables <- function(path='procdata',
     compound_synonyms[, name := NULL]
     setnames(compound_synonyms, c('id', 'Synonym'), c('compound_id', 'synonym'))
 
+    # filter for bad synonyms
+    compound_synonyms <- compound_synonyms[nchar(synonym) < 30 & synonym != 'NO_PUBCHEM_ENTRY', ]
+
     for (table in c('compound', 'compound_annotations', 'compound_dataset',
         'dataset', 'compound_synonyms'))
     {

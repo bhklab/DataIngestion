@@ -177,7 +177,7 @@ buildMolecProfTables <- function(path='procdata', outDir='latest',
     analysis <- unique(analysis)
 
     # sanity checks
-    if (any(duplicate(analysis$id)))
+    if (any(duplicated(analysis$id)))
         stop("Duplicate primary key in analysis table after mapping to samples!")
     if (!all(analysis$id %in% compound_gene_response$analysis_id))
         stop("Dropped some analysis ids when joining with compound_gene_response. It is appropriate to PANIC!")

@@ -28,11 +28,10 @@ def get_metadata(file_name, metadata_path):
 
 drug_syns_file = "drugs_with_ids.csv"
 cell_syns_file = "cell_annotation_all.csv"
-tissue_syns_file = "cell_annotation_all.csv"
 
 
 # TODO - 3 rows; 954 rows
-def cell_synonyms(cells_df, cell_syns_file, annotations_path):
+def cell_synonyms(cell_df, cell_syns_file, annotations_path):
     # Get metadata file
     cell_names_df = get_metadata(cell_syns_file, annotations_path)
 
@@ -42,7 +41,7 @@ def cell_synonyms(cells_df, cell_syns_file, annotations_path):
         col for col in cell_names_df.columns if pattern.search(col)]]
 
     # Get all unique synonyms and join with cells_df
-    cell_synonyms = melt_and_join(cell_columns, 'unique.cellid', cells_df)
+    cell_synonyms = melt_and_join(cell_columns, 'unique.cellid', cell_df)
 
     # Rename columns
     cell_synonyms.columns = ['cell_id', 'cell_name']
@@ -127,7 +126,6 @@ def melt_and_join(meta_df, unique_id, join_df):
     return synonyms
 
 
-
 # --- TARGET TABLES --------------------------------------------------------------------------
 
 drugbank_file = "drugbank_targets_has_ref_has_uniprot.csv"
@@ -141,6 +139,10 @@ def build_metadata_dfs(join_dfs, uniprot_ensemble_file, metdata_path):
     #drug_target_df = build_drug_target_df(target_df, join_dfs['drug'])
         #TODO: generalize drug-target mappings
 
+    # TODO: how to pass this many parameters
+    cell_syn_df = cell_synonyms(join_dfs['cell'], cell_syns_file, metadata_path)
+    tissue_syn_df = tissue_synonyms(join_dfs['tissue'], cell_syns_file, metadata_path)
+    drug_syn_df = drug_synonyms(join_dfs['drug'], drug_syns_file, metadata_path)
 
 
 #TODO - generalize so it goes through all targets (ChEMBL, etc.)

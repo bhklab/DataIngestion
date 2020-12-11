@@ -284,3 +284,9 @@ def build_experiment_tables(primary_dfs, read_file_path, write_file_path):
     experiment_df = experiment_df.drop(columns=['name'])
     write_table(experiment_df, 'experiment', write_file_path)
     # TODO: test this!!!
+
+
+def build_final_tables(read_file_path, write_file_path):
+    primary_dfs = build_primary_tables(read_file_path, write_file_path)
+    build_secondary_tables(primary_dfs, read_file_path, write_file_path)
+    build_experiment_tables(primary_dfs, read_file_path, write_file_path)

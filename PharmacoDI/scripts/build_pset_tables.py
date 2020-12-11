@@ -28,7 +28,6 @@ def build_pset_tables(pset_dict, pset_name, file_path):
 
     # Build primary tables
     print('Building primary tables...')
-    # pd.DataFrame({'id': pset_name, 'name': pset_name})
     pset_dfs['dataset'] = pd.Series(pset_name, name='name')
     build_primary_tables(pset_dict, pset_dfs)
 
@@ -258,8 +257,6 @@ def build_cell_df(pset_dict, tissues_df):
 
     return cell_df
 
-# TODO
-
 
 def build_clinical_trial_df(pset_dict, drugs_df):
     """
@@ -267,14 +264,12 @@ def build_clinical_trial_df(pset_dict, drugs_df):
     """
     return pd.DataFrame()
 
+
 # ---- Build dose response table
 # Chris' implementation
 # TODO:: Do Python functions pass my reference or copy by default?
 # If pass by reference may need to make a copy before using inplace=TRUE argument
 # to prevent modifying the original experiments table
-# NOTE: database tables should always use singular names
-
-
 def build_dose_response_df(pset_dict, experiment_df):
     """
     Build a table that, for each experiment in a dataset, lists the drug that was
