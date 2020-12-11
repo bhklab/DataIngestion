@@ -12,7 +12,7 @@ psets = ['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1',
          'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']
 
 
-def load_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1', 'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']):
+def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1', 'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']):
     """
     Given the name of a table and a file_path to all PSet tables,
     read all the tables into DataFrames and return a list.
@@ -49,7 +49,8 @@ def concat_tables(df_list, chunksize=500000):
     df = dd.concat(df_list)
 
     # Drop id column (old index)
-    df = df.drop('id', axis=1)
+    if 'id' in df.columns:
+        df = df.drop('id', axis=1)
 
     # Drop duplicate rows
     df = df.drop_duplicates()
@@ -114,7 +115,7 @@ def load_concat_write(name, read_file_path, write_file_path):
     @param write_file_path: [`string`] The file path containing the final tables
     @return: [`DataFrame`] The final DataFrame that was written to disk
     """
-    df_list = load_tables(name, read_file_path)
+    df_list = load_pset_tables(name, read_file_path)
     df = concat_tables(df_list)
     df = reindex_table(df)
     write_table(df, name, write_file_path)
@@ -175,7 +176,7 @@ def safe_merge(df1, df2, fk_name, right_on='name'):
     return join_df
 
 
-def load_join_write(name, fks, primary_dfs, read_file_path, write_file_path):
+def load_join_write(name, fks, join_dfs, read_file_path, write_file_path):
     """
     Given the name to a table and a list of its foreign keys, load
     all PSet tables of that name from read_file_path, concatenate 
@@ -184,19 +185,19 @@ def load_join_write(name, fks, primary_dfs, read_file_path, write_file_path):
 
     @param name: [`string`] The name of the table
     @param fks: [`list(string)`] A list of tables to be joined with
-    @param primary_dfs: [`dict(DataFrame)`] A dictionary of primary tables
-                        to be joined to to build foreign keys
+    @param join_dfs: [`dict(string: DataFrame)`] A dictionary of tables
+                                    to be joined to to build foreign keys
     @param read_file_path: [`string`] The file path to the PSet tables
     @param write_file_path: [`string`] The file path to the final tables
     @return: [`DataFrame`] The final DataFrame that was written to disk
     """
     # Load and concatenate all 'name' tables for all PSets
-    df_list = load_tables(name, read_file_path)
+    df_list = load_pset_tables(name, read_file_path)
     df = concat_tables(df_list)
 
     # Build all foreign keys by joining with primary tables
     for fk in fks:
-        join_df = primary_dfs[fk]
+        join_df = join_dfs[fk]
         df = safe_merge(df, join_df, f'{fk}_id')
 
     # Reindex the final table and write to disk
@@ -254,52 +255,32 @@ def build_secondary_tables(primary_dfs, read_file_path, write_file_path):
                         read_file_path, write_file_path)
 
 
-def build_metadata_tables():
-    # Load target table and join to gene table
-    # if this works then i should rename the fxn
-    target_df = load_join_table('target', read_file_path)
-    gene_df = load_join_table('gene', write_file_path)
-    # not all gene ids joined
-    target_df = safe_merge(target_df, gene_df, 'gene_id')
-    # Remove from memory once join is complete (TODO - more of this)
-    del gene_df
+def build_experiment_tables(primary_dfs, read_file_path, write_file_path):
+    """
+    ??????
 
-    # Load drug_targets table and join to target table
-    drug_targets_df = load_join_table('drug_target', read_file_path)
-    drug_df = load_join_table('drug', write_file_path)
-    drug_targets_df = safe_merge(drug_targets_df, drug_df, 'drug_id')
-    drug_targets_df = safe_merge(drug_targets_df, target_df, 'target_id')
-    del drug_df
-
-    write_table(target_df, 'target', write_file_path)
-    write_table(drug_targets_df, 'drug_target', write_file_path)
-
-
-def build_experiment_tables(read_file_path, write_file_path):
+    @param primary_dfs: [`dict(string: DataFrame)`]
+    @param read_file_path: [`string`] The file path to the PSet tables
+    @param write_file_path: [`string`] The file path to the final tables
+    @return: [`None`]
+    """
     # Load all experiments from PSets
-    experiment_df = concat_tables(load_tables('experiment', read_file_path))
+    experiment_df = concat_tables(load_pset_tables('experiment', read_file_path))
 
     # Join experiment table and with primary tables
     for fk in ['cell', 'drug', 'dataset', 'tissue']:
-        join_df = load_join_table(fk, write_file_path)  # TODO change this
+        join_df = primary_dfs[fk]
         experiment_df = safe_merge(experiment_df, join_df, f'{fk}_id')
 
     # Reindex experiment table
     experiment_df = reindex_table(experiment_df)
 
-    # Load and concatenate dose response and profile tables
-    dose_response_df = concat_tables(load_tables('dose_response', read_file_path))
-    profile_df = concat_tables(load_tables('profile', read_file_path))
+    # Load and concatenate dose response and profile tables, join with experiment table
+    join_dict = {'experiment': experiment_df}
+    load_join_write('dose_response', ['experiment'], join_dict, read_file_path, write_file_path)
+    load_join_write('profile', ['experiment'], join_dict, read_file_path, write_file_path)
 
-    # Join dose response and profile tables with experiment table
-    safe_merge(dose_response_df, experiment_df, 'experiment_id')
-    safe_merge(profile_df, experiment_df, 'experiment_id')
-
-    # Drop experiment name from table
+    # Drop experiment name from table after joins and write to disk
     experiment_df = experiment_df.drop(columns=['name'])
-
-    # Write experiment, dose response, and profile tables
     write_table(experiment_df, 'experiment', write_file_path)
-    write_table(dose_response_df, 'dose_response', write_file_path)
-    write_table(profile_df, 'profile', write_file_path)
     # TODO: test this!!!
