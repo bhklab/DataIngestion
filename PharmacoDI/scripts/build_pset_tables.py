@@ -40,7 +40,6 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     pset_dfs['cell'] = build_cell_df(pset_dict, pset_dfs['tissue'])
     pset_dfs['experiment'] = build_experiment_df(
         pset_dict, pset_dfs['cell'], pset_name)
-    # pset_dfs['clinical_trials'] = build_clinical_trials_df(pset_dict, pset_dfs['drug']) # TODO - API
     pset_dfs['dose_response'] = build_dose_response_df(
         pset_dict, pset_dfs['experiment'])
     pset_dfs['profile'] = build_profile_df(pset_dict)
@@ -256,13 +255,6 @@ def build_cell_df(pset_dict, tissues_df):
                              'tissueid': 'tissue_id'}, inplace=True)
 
     return cell_df
-
-
-def build_clinical_trial_df(pset_dict, drugs_df):
-    """
-    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    """
-    return pd.DataFrame()
 
 
 # ---- Build dose response table
