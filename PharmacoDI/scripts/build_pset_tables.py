@@ -53,11 +53,11 @@ def build_pset_tables(pset_dict, pset_name, file_path):
 
     # Build summary/stats tables
     print('Building summary/stats tables...')
-    pset_dfs['dataset_cells'] = build_dataset_cell_df(
+    pset_dfs['dataset_cell'] = build_dataset_cell_df(
         pset_dict, pset_dfs['cell'], pset_name)
-    if 'gene_drugs' in pset_dfs:
-        pset_dfs['mol_cells'] = build_mol_cell_df(
-            pset_dict, pset_dfs['datasets_cells'], pset_dfs['gene_drugs'])
+    if 'gene_drug' in pset_dfs:
+        pset_dfs['mol_cell'] = build_mol_cell_df(
+            pset_dict, pset_dfs['dataset_cell'], pset_dfs['gene_drug'])
     pset_dfs['dataset_statistics'] = build_dataset_stats_df(
         pset_dict, pset_dfs, pset_name)
 
@@ -308,8 +308,8 @@ def build_dose_response_df(pset_dict, experiment_df):
     dose_response_df = pd.merge(
         dose, response, left_index=True, right_index=True).reset_index()
 
-    dose_response_df.rename(columns={'.exp_id': 'experiments_id'}, inplace=True)
-    dose_response_df.drop('dose_id', inplace=True)
+    dose_response_df.rename(columns={'.exp_id': 'experiment_id'}, inplace=True)
+    dose_response_df.drop(columns=['dose_id'], inplace=True)
 
     return dose_response_df
 
@@ -500,7 +500,7 @@ def build_mol_cell_df(pset_dict, dataset_cell_df, gene_drug_df):
             df['mDataType'] = mDataType
             df['num_prof'] = 0
 
-        # Append to mol_cells_df
+        # Append to mol_cell_df
         mol_cell_df = mol_cell_df.append(df)
 
     # Replace any NaN in the num_profiles column with 0
@@ -526,5 +526,5 @@ def build_dataset_stats_df(pset_dict, pset_dfs, pset_name):
         'cell_lines': [len(pset_dfs['cell'].index)],
         'tissues': [len(pset_dfs['tissue'].index)],
         'drugs': [len(pset_dfs['drug'].index)],
-        'experiments': [len(pset_dfs['experiments'].index)]
+        'experiments': [len(pset_dfs['experiment'].index)]
     })
