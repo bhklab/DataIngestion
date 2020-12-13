@@ -101,6 +101,7 @@ def write_table(df, name, file_path):
             os.remove(os.path.join(df_path, f))
 
     # Write to CSV
+    print(f'Writing {name} table to disk...')
     dd.to_csv(df, os.path.join(df_path, f'{name}-*.csv'))
 
 
@@ -227,39 +228,47 @@ def build_primary_tables(read_file_path, write_file_path):
     return {'tissue': tissue_df, 'drug': drug_df, 'gene': gene_df, 'dataset': dataset_df}
 
 
-def build_secondary_tables(primary_dfs, read_file_path, write_file_path):
+def build_secondary_tables(join_dfs, read_file_path, write_file_path):
     """
     Build all secondary tables, i.e., all tables that have foreign keys corresponding
     to primary keys of primary tables. The function reads PSet tables from 
     read_file_path, concatenates and joins them with tables from primary_dfs, and 
     writes them to write_file_path.
 
-    @param primary_dfs: [`dict(string: DataFrame)`] A dictionary of all the primary
+    @param join_dfs: [`dict(string: DataFrame)`] A dictionary of all the primary
                                                     tables, with names as keys
     @param read_file_path: [`string`] The file path to the PSet tables
     @param write_file_path: [`string`] The file path to the final tables
+    @return: [`dict(string: DataFrame)`] The updated dictionary of tables to
+                                        join with (includes cell table)
     """
-    # Other tables need to be joined to get their foreign keys
-    load_join_write('cell', ['tissue'], primary_dfs, read_file_path, write_file_path)
-    load_join_write('dataset_cell', ['dataset', 'cell'], primary_dfs,
-                        read_file_path, write_file_path)
-    load_join_write('drug_annotation', ['drug'], primary_dfs,
-                        read_file_path, write_file_path)
-    #load_join_write('gene_annotation', ['gene'], read_file_path, write_file_path)
+    # Build cell table and add to join_dfs dictionary
+    cell_df = load_join_write('cell', ['tissue'], join_dfs, read_file_path, write_file_path)
+    join_dfs['cell'] = cell_df
+
+    # Build annotation tables
+    load_join_write('drug_annotation', ['drug'], join_dfs,
+                    read_file_path, write_file_path)
+    load_join_write('gene_annotation', ['gene'], join_dfs, read_file_path, write_file_path)
     # symbol col causing issues with dtype; i think because lots of vals missing
 
-    load_join_write('mol_cell', ['cell', 'dataset'], primary_dfs,
+    # Build all other secondary tables
+    load_join_write('dataset_cell', ['dataset', 'cell'], join_dfs,
+                        read_file_path, write_file_path)
+    load_join_write('mol_cell', ['cell', 'dataset'], join_dfs,
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], primary_dfs,
+    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
                         read_file_path, write_file_path)
 
+    return join_dfs
 
-def build_experiment_tables(primary_dfs, read_file_path, write_file_path):
+
+def build_experiment_tables(join_dfs, read_file_path, write_file_path):
     """
     ??????
 
-    @param primary_dfs: [`dict(string: DataFrame)`]
+    @param join_dfs: [`dict(string: DataFrame)`]
     @param read_file_path: [`string`] The file path to the PSet tables
     @param write_file_path: [`string`] The file path to the final tables
     @return: [`None`]
@@ -269,7 +278,7 @@ def build_experiment_tables(primary_dfs, read_file_path, write_file_path):
 
     # Join experiment table and with primary tables
     for fk in ['cell', 'drug', 'dataset', 'tissue']:
-        join_df = primary_dfs[fk]
+        join_df = join_dfs[fk]
         experiment_df = safe_merge(experiment_df, join_df, f'{fk}_id')
 
     # Reindex experiment table
@@ -286,7 +295,9 @@ def build_experiment_tables(primary_dfs, read_file_path, write_file_path):
     # TODO: test this!!!
 
 
+# TODO - better name
 def build_final_tables(read_file_path, write_file_path):
-    primary_dfs = build_primary_tables(read_file_path, write_file_path)
-    build_secondary_tables(primary_dfs, read_file_path, write_file_path)
-    build_experiment_tables(primary_dfs, read_file_path, write_file_path)
+    join_dfs = build_primary_tables(read_file_path, write_file_path)
+    join_dfs = build_secondary_tables(join_dfs, read_file_path, write_file_path)
+    build_experiment_tables(join_dfs, read_file_path, write_file_path)
+    return join_dfs
