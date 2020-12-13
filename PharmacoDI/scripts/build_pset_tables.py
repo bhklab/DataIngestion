@@ -4,10 +4,8 @@ import pandas as pd
 import numpy as np
 import dask.dataframe as dd
 
-pset_name = 'GDSC_v1'
 # the directory where you want to store the tables (processed data)
 file_path = 'procdata'
-metadata_path = os.path.join("data", "metadata", "Annotations")
 gene_sig_file_path = os.path.join(
     'data', 'rawdata', 'gene_signatures')  # the directory with data for gene_drugs
 
@@ -45,62 +43,63 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     pset_dfs['profile'] = build_profile_df(pset_dict)
 
     # Build gene drugs table
-    if os.path.exists(os.path.join(gene_sig_file_path, pset_name)):
-        print('Building gene drug table...')
-        pset_dfs['gene_drug'] = build_gene_drug_df(
+    print('Building gene drug table...')
+    pset_dfs['gene_drug'] = build_gene_drug_df(
             gene_sig_file_path, pset_name)
 
     # Build summary/stats tables
     print('Building summary/stats tables...')
     pset_dfs['dataset_cell'] = build_dataset_cell_df(
         pset_dict, pset_dfs['cell'], pset_name)
-    if 'gene_drug' in pset_dfs:
+    if not pset_dfs['gene_drug'].empty:
         pset_dfs['mol_cell'] = build_mol_cell_df(
             pset_dict, pset_dfs['dataset_cell'], pset_dfs['gene_drug'])
     pset_dfs['dataset_statistics'] = build_dataset_stats_df(
         pset_dict, pset_dfs, pset_name)
 
     # Write all tables to csv
-    write_dfs_to_csv(pset_dfs, pset_name, file_path)
+    for df_name in pset_dfs.keys():
+        write_pset_table(pset_dfs[df_name], df_name, pset_name, file_path)
 
 
-def write_dfs_to_csv(pset_dfs, pset_name, df_dir):
+def write_pset_table(pset_df, df_name, pset_name, df_dir):
     """
-    @param pset_dfs: [`dict`] A dictionary of all the pset DataFrames you want to write to csv
-    @param pset_name: [`string`] The name of the pset, used to create a subdirectory for the tables in this pset
-    @param df_dir: [`string`] The name of the directory to hold all the tables
+    Write a PSet table to a CSV file.
+
+    @param pset_df: [`DataFrame`] A PSet DataFrame
+    @param pset_name: [`string`] The name of the PSet
+    @param df_dir: [`string`] The name of the directory to hold all the PSet tables
     @return [`None`]
     """
-    file_path = os.path.join(df_dir, pset_name)
+    pset_path = os.path.join(df_dir, pset_name)
     # Make sure directory for this PSet exists
-    if not os.path.exists(file_path):
-        os.mkdir(file_path)
+    if not os.path.exists(pset_path):
+        os.mkdir(pset_path)
 
-    for df_name in pset_dfs.keys():
-        print(f'Writing {df_name} table to csv...')
-        df = pset_dfs[df_name]
-        
-        df.index.rename('id', inplace=True)
+    df_path = os.path.join(pset_path, df_name)
+    # Make sure subdirectory for this table exists
+    if not os.path.exists(df_path):
+        os.mkdir(df_path)
+    else:
+        # Clear all old files so there aren't overlaps/errors
+        for f in os.listdir(df_path):
+            os.remove(os.path.join(df_path, f))
 
-        df_path = os.path.join(file_path, df_name)
-        # Make sure subdirectory for this table exists
-        if not os.path.exists(df_path):
-            os.mkdir(df_path)
-        else:
-            # Clear all old files so there aren't overlaps/errors
-            for f in os.listdir(df_path):
-                os.remove(os.path.join(df_path, f))
+    # Rename the index
+    pset_df.index.rename('id', inplace=True)
 
-        if len(df.index) < dask_threshold:
-            # Use pandas to convert df to csv
-            df.to_csv(os.path.join(df_path,
-                f'{pset_name}_{df_name}.csv'), index=True)
-        else:
-            # Convert pandas df into dask df
-            dask_df = dd.from_pandas(df, chunksize=500000)
-            # Write dask_df to csv
-            dd.to_csv(dask_df, os.path.join(
-                df_path, f'{pset_name}_{df_name}-*.csv'), index=True)
+    # Write PSet table to CSV
+    print(f'Writing {df_name} table to {df_path}...')
+    if len(pset_df.index) < dask_threshold:
+        # Use pandas to convert df to csv
+        pset_df.to_csv(os.path.join(
+            df_path, f'{pset_name}_{df_name}.csv'), index=True)
+    else:
+        # Convert pandas df into dask df
+        dask_df = dd.from_pandas(pset_df, chunksize=500000)
+        # Write dask_df to csv
+        dd.to_csv(dask_df, os.path.join(
+            df_path, f'{pset_name}_{df_name}-*.csv'), index=True)
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -145,11 +144,11 @@ def build_tissue_table(pset_dict):
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] The tissue table
     """
-    tissue_df = pd.Series(pd.unique(pset_dict['cell']['tissueid']), name='name')
+    tissue_df = pd.Series(
+        pd.unique(pset_dict['cell']['tissueid']), name='name')
     return tissue_df
 
 
-# Make drugs df; TODO - confirm whether to use drugid (?) or DRUG_NAME (targets)
 def build_drug_table(pset_dict):
     """
     Build a table containing all drugs in a dataset.
@@ -158,7 +157,7 @@ def build_drug_table(pset_dict):
     @return: [`DataFrame`] The drug table
     """
     drug_df = pd.Series(pd.unique(pset_dict['drug']['drugid']), name='name')
-    return drug_df 
+    return drug_df
 
 
 # --- ANNOTATION TABLES -----------------------------------------------------------------------
@@ -197,7 +196,8 @@ def build_gene_annotation_df(pset_dict):
             cols.append('Symbol')
 
         df = df[cols]
-        df.rename(columns={'.features': 'gene_id', 'Symbol': 'symbol'}, inplace=True)
+        df.rename(columns={'.features': 'gene_id',
+                           'Symbol': 'symbol'}, inplace=True)
         gene_annotation_df = gene_annotation_df.append(df)
 
     gene_annotation_df.drop_duplicates(subset=['gene_id'], inplace=True)
@@ -252,7 +252,7 @@ def build_cell_df(pset_dict, tissues_df):
     """
     cell_df = pset_dict['cell'][['cellid', 'tissueid']].copy()
     cell_df.rename(columns={'cellid': 'name',
-                             'tissueid': 'tissue_id'}, inplace=True)
+                            'tissueid': 'tissue_id'}, inplace=True)
 
     return cell_df
 
@@ -348,12 +348,12 @@ def build_profile_df(pset_dict):
         profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'HS', 'E_inf', 'EC50']].copy()
         profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC',
-                                    'ic50_recomputed': 'IC50', 'E_inf': 'Einf'}, inplace=True)
+                                   'ic50_recomputed': 'IC50', 'E_inf': 'Einf'}, inplace=True)
     else:
         profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'slope_recomputed', 'einf', 'ec50']].copy()
         profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
-                                    'ic50_recomputed': 'IC50', 'einf': 'Einf', 'ec50': 'EC50'}, inplace=True)
+                                   'ic50_recomputed': 'IC50', 'einf': 'Einf', 'ec50': 'EC50'}, inplace=True)
 
     # Add DSS columns - TODO get these values when they are eventually computed
     profile_df['DSS1'] = np.nan
@@ -393,6 +393,11 @@ def build_gene_drug_df(gene_sig_file_path, pset_name):
     @param pset_name: [`string`] The name of the PSet
     @return: [`DataFrame`] The gene_drugs table for this PSet, containing all stats (?)
     """
+    # If gene signature file doesn't exist, return empty DataFrame
+    if not os.path.exists(os.path.join(gene_sig_file_path, pset_name)):
+        print(f'WARNING: gene signature annotations file does not exist for {pset_name} in {gene_sig_file_path}')
+        return pd.DataFrame()
+
     # Get gene_sig_df from gene_sig_file
     gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
 
@@ -431,9 +436,9 @@ def build_gene_drug_df(gene_sig_file_path, pset_name):
 
     # Reorder columns
     return gene_drug_df[['gene_id', 'drug_id', 'estimate', 'se', 'n', 'tstat', 'fstat',
-                          'pvalue', 'df', 'fdr', 'FWER_genes', 'FWER_drugs', 'FWER_all',
-                          'BF_p_all', 'meta_res', 'dataset_id', 'sens_stat', 'tissue_id',
-                          'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
+                         'pvalue', 'df', 'fdr', 'FWER_genes', 'FWER_drugs', 'FWER_all',
+                         'BF_p_all', 'meta_res', 'dataset_id', 'sens_stat', 'tissue_id',
+                         'mDataType', 'tested_in_human_trials', 'in_clinical_trials']]
 
 
 # --- STATS/SUMMARY TABLES -----------------------------------------------------------------------
