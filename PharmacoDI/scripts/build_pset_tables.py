@@ -1,5 +1,6 @@
 import os
 import glob
+import re
 import pandas as pd
 import numpy as np
 import dask.dataframe as dd
@@ -45,7 +46,7 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     # Build gene drugs table
     print('Building gene drug table...')
     pset_dfs['gene_drug'] = build_gene_drug_df(
-            gene_sig_file_path, pset_name)
+        gene_sig_file_path, pset_name)
 
     # Build summary/stats tables
     print('Building summary/stats tables...')
@@ -127,12 +128,15 @@ def build_gene_table(pset_dict):
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @return: [`DataFrame`] The gene table
     """
-    gene_df = pd.Series([], name='name')
+    gene_df = pd.Series([], name='name', dtype='str')
     for mDataType in pset_dict['molecularProfiles']:
-        if 'EnsemblGeneId' in pset_dict['molecularProfiles'][mDataType]['rowData']:
-            gene_df = gene_df.append(pd.Series(pd.unique(
-                pset_dict['molecularProfiles'][mDataType]['rowData']['EnsemblGeneId']), name='name'))
+        gene_df = gene_df.append(pd.Series(pd.unique(
+            pset_dict['molecularProfiles'][mDataType]['rowData']['.features']), 
+            name='name', dtype='str'))
 
+    # Many ENSEMBL gene IDs have the version (ex. ENST00000456328.2 instead 
+    # of ENST00000456328); remove all version numbers
+    gene_df.replace('\.[0-9]$', '', regex=True, inplace=True)
     gene_df.drop_duplicates(inplace=True)
     return gene_df
 
@@ -186,7 +190,7 @@ def build_gene_annotation_df(pset_dict):
     @return: [`DataFrame`] A table of all gene annotations, mapped to genes
     """
     gene_annotation_df = pd.DataFrame(
-        columns=['gene_id', 'symbol', 'gene_seq_start', 'gene_seq_end'])
+        columns=['gene_id', 'symbol', 'gene_seq_start', 'gene_seq_end'], dtype='str')
 
     for mDataType in pset_dict['molecularProfiles']:
         df = pset_dict['molecularProfiles'][mDataType]['rowData'].copy()
@@ -200,6 +204,9 @@ def build_gene_annotation_df(pset_dict):
                            'Symbol': 'symbol'}, inplace=True)
         gene_annotation_df = gene_annotation_df.append(df)
 
+    # Remove all ENSEMBL gene id version numbers (ex. ENST00000456328.2 instead of ENST00000456328)
+    gene_annotation_df['gene_id'].replace(
+        '\.[0-9]$', '', regex=True, inplace=True)
     gene_annotation_df.drop_duplicates(subset=['gene_id'], inplace=True)
 
     return gene_annotation_df
@@ -323,7 +330,7 @@ def build_experiment_df(pset_dict, cell_df, dataset_id):
     experiment_df.rename(
         columns={'.rownames': 'experiment_id', 'cellid': 'cell_id', 'drugid': 'drug_id'}, inplace=True)
 
-    # Add datset_id column TODO - copy warning
+    # Add datset_id column
     experiment_df['dataset_id'] = dataset_id
 
     # Add tissue_id column by joining with cells_df
@@ -395,7 +402,8 @@ def build_gene_drug_df(gene_sig_file_path, pset_name):
     """
     # If gene signature file doesn't exist, return empty DataFrame
     if not os.path.exists(os.path.join(gene_sig_file_path, pset_name)):
-        print(f'WARNING: gene signature annotations file does not exist for {pset_name} in {gene_sig_file_path}')
+        print(
+            f'WARNING: gene signature annotations file does not exist for {pset_name} in {gene_sig_file_path}')
         return pd.DataFrame()
 
     # Get gene_sig_df from gene_sig_file
