@@ -29,10 +29,10 @@ def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1'
         if os.path.exists(pset_path):
             if len(os.listdir(pset_path)) == 1:
                 # Written as a single CSV file with pandas read_csv
-                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}.csv'))
+                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}.csv', dtype={'symbol': 'object'}))
             else:
                 # Written as many CSVs with Dask
-                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}-*.csv'))
+                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}-*.csv', dtype={'symbol': 'object'}))
 
     return dfs
 
@@ -153,7 +153,8 @@ def safe_merge(df1, df2, fk_name, right_on='name'):
                             to the primary key of df2)
     """
     # Make copy of relevant cols of df2 so you don't have to drop all the other ones after merge
-    df2 = df2[['id', right_on]].copy()
+    df2 = df2[[right_on]].copy()
+    df2['id'] = df2.index
     # Rename df2 FK column to avoid naming conflicts (since df1 will probably have 'name' col too)
     df2 = df2.rename(columns={right_on: f'{fk_name}_{right_on}'})
     right_on = f'{fk_name}_{right_on}'
@@ -167,7 +168,7 @@ def safe_merge(df1, df2, fk_name, right_on='name'):
     # Rename df2 id col to fk_name
     join_df = join_df.rename(columns={'id': fk_name})
     # Cast FK column as int
-    join_df[fk_name] = join_df[fk_name].astype('int')
+    join_df[fk_name] = join_df[fk_name].astype(pd.Int64Dtype())
 
     # Check if any rows did not join properly with dataset
     # TODO - consider using validate param instead; consider throwing an error
@@ -250,7 +251,6 @@ def build_secondary_tables(join_dfs, read_file_path, write_file_path):
     load_join_write('drug_annotation', ['drug'], join_dfs,
                     read_file_path, write_file_path)
     load_join_write('gene_annotation', ['gene'], join_dfs, read_file_path, write_file_path)
-    # symbol col causing issues with dtype; i think because lots of vals missing
 
     # Build all other secondary tables
     load_join_write('dataset_cell', ['dataset', 'cell'], join_dfs,
@@ -258,15 +258,17 @@ def build_secondary_tables(join_dfs, read_file_path, write_file_path):
     load_join_write('mol_cell', ['cell', 'dataset'], join_dfs,
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
-                        read_file_path, write_file_path)
+    #load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
+    #                    read_file_path, write_file_path)
 
     return join_dfs
 
 
 def build_experiment_tables(join_dfs, read_file_path, write_file_path):
     """
-    ??????
+    Load and process experiment table, then use it to build the dose response
+    and profile tables. Drop the 'name' column from the experiment table before
+    writing to a CSV.
 
     @param join_dfs: [`dict(string: DataFrame)`]
     @param read_file_path: [`string`] The file path to the PSet tables
@@ -292,7 +294,6 @@ def build_experiment_tables(join_dfs, read_file_path, write_file_path):
     # Drop experiment name from table after joins and write to disk
     experiment_df = experiment_df.drop(columns=['name'])
     write_table(experiment_df, 'experiment', write_file_path)
-    # TODO: test this!!!
 
 
 # TODO - better name
