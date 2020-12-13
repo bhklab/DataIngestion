@@ -334,9 +334,9 @@ def build_experiment_df(pset_dict, cell_df, dataset_id):
     experiment_df['dataset_id'] = dataset_id
 
     # Add tissue_id column by joining with cells_df
-    experiment_df = pd.merge(
-        experiment_df, cell_df[['name', 'tissue_id']], left_on='cell_id', right_on='name',
-        how='left')[['experiment_id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id']]
+    experiment_df = pd.merge(experiment_df, cell_df[['name', 'tissue_id']], 
+                            left_on='cell_id', right_on='name', how='left')
+    experiment_df = experiment_df[['experiment_id', 'cell_id', 'drug_id', 'dataset_id', 'tissue_id']]
 
     experiment_df.rename(columns={'experiment_id': 'name'}, inplace=True)
 
@@ -354,12 +354,12 @@ def build_profile_df(pset_dict):
     if 'E_inf' in pset_dict['sensitivity']['profiles'].columns:
         profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'HS', 'E_inf', 'EC50']].copy()
-        profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC',
+        profile_df.rename(columns={'.rownames': 'experiment_id', 'aac_recomputed': 'AAC',
                                    'ic50_recomputed': 'IC50', 'E_inf': 'Einf'}, inplace=True)
     else:
         profile_df = pset_dict['sensitivity']['profiles'][[
             '.rownames', 'aac_recomputed', 'ic50_recomputed', 'slope_recomputed', 'einf', 'ec50']].copy()
-        profile_df.rename(columns={'.rownames': 'experiments_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
+        profile_df.rename(columns={'.rownames': 'experiment_id', 'aac_recomputed': 'AAC', 'slope_recomputed': 'HS',
                                    'ic50_recomputed': 'IC50', 'einf': 'Einf', 'ec50': 'EC50'}, inplace=True)
 
     # Add DSS columns - TODO get these values when they are eventually computed
@@ -367,7 +367,7 @@ def build_profile_df(pset_dict):
     profile_df['DSS2'] = np.nan
     profile_df['DSS3'] = np.nan
 
-    return profile_df[['experiments_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
+    return profile_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
 
 
 # --- GENE_DRUGS TABLE --------------------------------------------------------------------------
