@@ -4,12 +4,15 @@ import glob
 import numpy as np
 import pandas as pd
 import dask.dataframe as dd
-from join_pset_tables import *
+from scripts.join_pset_tables import *
 
 read_file_path = os.path.join('data', 'procdata')
 write_file_path = os.path.join('data', 'latest')
 metadata_path = os.path.join('data', 'metadata')
-annotations_path = os.path.join(metadata_path, 'Annotations')
+
+cell_meta_file = "cell_annotation_all.csv"
+tissue_meta_file = "cell_annotation_all.csv"
+drug_meta_file = "drugs_with_ids.csv"
 
 
 def get_metadata(file_name, metadata_path):
@@ -26,102 +29,107 @@ def get_metadata(file_name, metadata_path):
 
 # --- SYNONYMS TABLES --------------------------------------------------------------------------
 
-drug_syns_file = "drugs_with_ids.csv"
-cell_syns_file = "cell_annotation_all.csv"
-
-
 # TODO - 3 rows; 954 rows
-def cell_synonyms(cell_df, cell_syns_file, annotations_path):
+def build_cell_synonyms_df(cell_df, cell_meta_file, metadata_path, write_file_path):
     # Get metadata file
-    cell_names_df = get_metadata(cell_syns_file, annotations_path)
+    cell_metadata = get_metadata(cell_meta_file, metadata_path)
 
     # Find all columns relevant to cellid
     pattern = re.compile('cellid')
-    cell_columns = cell_names_df[[
-        col for col in cell_names_df.columns if pattern.search(col)]]
+    cell_columns = cell_metadata[[
+        col for col in cell_metadata.columns if pattern.search(col)]]
 
-    # Get all unique synonyms and join with cells_df
-    cell_synonyms = melt_and_join(cell_columns, 'unique.cellid', cell_df)
+    # Convert cell columns to Dask dataframe to enable merging
+    cell_columns = dd.from_pandas(cell_columns, chunksize=500000)
 
-    # Rename columns
-    cell_synonyms.columns = ['cell_id', 'cell_name']
+    # Get all unique synonyms and join with cell_df
+    cell_synonym_df = melt_and_join(cell_columns, 'unique.cellid', cell_df)
+    cell_synonym_df = cell_synonym_df.rename(columns={'id': 'cell_id', 'value': 'cell_name'})
 
-    # Add primary key and blank col for dataset_id (TODO)
-    cell_synonyms['id'] = cell_synonyms.index + 1
-    cell_synonyms['dataset_id'] = np.nan
+    # Add blank col for dataset_id (TODO)
+    cell_synonym_df['dataset_id'] = np.nan
 
-    # Reorder columns to match ERD
-    return cell_synonyms[['id', 'cell_id', 'dataset_id', 'cell_name']]
+    # Reindex and write to disk
+    cell_synonym_df = reindex_table(cell_synonym_df)
+    write_table(cell_synonym_df, 'cell_synonym', write_file_path)
+    
 
-
-def tissue_synonyms(tissues_df, tissue_syns_file, annotations_path):
+def build_tissue_synonyms_df(tissue_df, tissue_meta_file, metadata_path, write_file_path):
     # Get metadata file
-    tissues_metadata = get_metadata(tissue_syns_file, annotations_path)
+    tissue_metadata = get_metadata(tissue_meta_file, metadata_path)
 
     # Find all columns relevant to tissueid
     pattern = re.compile('tissueid')
-    tissue_cols = tissues_metadata[[
-        col for col in tissues_metadata.columns if pattern.search(col)]]
+    tissue_cols = tissue_metadata[[
+        col for col in tissue_metadata.columns if pattern.search(col)]]
 
-    # Get all unique synonyms and join with tissues_df
-    tissue_synonyms = melt_and_join(tissue_cols, 'unique.tissueid', tissues_df)
+    # Convert tissue columns to Dask dataframe to enable merging
+    tissue_cols = dd.from_pandas(tissue_cols, chunksize=500000)
 
-    # Rename columns
-    tissue_synonyms.columns = ['tissue_id', 'tissue_name']
+    # Get all unique synonyms and join with tissue_df
+    tissue_synonym_df = melt_and_join(tissue_cols, 'unique.tissueid', tissue_df)
+    tissue_synonym_df = tissue_synonym_df.rename(columns={'id': 'tissue_id', 'value': 'tissue_name'})
 
-    # Add primary key and blank col for dataset_id (TODO)
-    tissue_synonyms['id'] = tissue_synonyms.index + 1
-    tissue_synonyms['dataset_id'] = np.nan
+    # Add blank col for dataset_id (TODO)
+    tissue_synonym_df['dataset_id'] = np.nan
 
-    # Reorder columns to match ERD
-    return tissue_synonyms[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
+    # Reindex and write to disk
+    tissue_synonym_df = reindex_table(tissue_synonym_df)
+    write_table(tissue_synonym_df, 'tissue_synonym', write_file_path)
 
 
-def drug_synonyms(drugs_df, drug_syns_file, annotations_path):
+def build_drug_synonyms_df(drug_df, drug_meta_file, metadata_path, write_file_path):
     # Get metadata file
-    drugs_metadata = get_metadata(drug_syns_file, annotations_path)
+    drug_metadata = get_metadata(drug_meta_file, metadata_path)
 
     # Find all columns relevant to drugid
     # Right now only FDA col is dropped, but may be more metadata in the future
     pattern = re.compile('drugid')
-    drugs_metadata = drugs_metadata[[
-        col for col in drugs_metadata.columns if pattern.search(col)]]
+    drug_cols= drug_metadata[[
+        col for col in drug_metadata.columns if pattern.search(col)]]
+
+    # Convert drug columns to Dask dataframe to enable merging
+    drug_cols = dd.from_pandas(drug_cols, chunksize=500000)
 
     # Get all unique synonyms and join with drugs_df
-    drug_synonyms = melt_and_join(drugs_metadata, 'unique.drugid', drugs_df)
+    drug_synonym_df = melt_and_join(drug_cols, 'unique.drugid', drug_df)
+    drug_synonym_df = drug_synonym_df.rename(columns={'id': 'drug_id', 'value': 'drug_name'})
 
-    # Rename columns
-    drug_synonyms.columns = ['tissue_id', 'tissue_name']
+    # Add blank col for dataset_id (TODO)
+    drug_synonym_df['dataset_id'] = np.nan
 
-    # Add primary key and blank col for dataset_id (TODO)
-    drug_synonyms['id'] = drug_synonyms.index + 1
-    drug_synonyms['dataset_id'] = np.nan
-
-    # Reorder columns to match ERD
-    return drug_synonyms[['id', 'tissue_id', 'dataset_id', 'tissue_name']]
+    # Reindex and write to disk
+    drug_synonym_df = reindex_table(drug_synonym_df)
+    write_table(drug_synonym_df, 'drug_synonym', write_file_path)
 
 
 # Helper function for getting all synonyms related to a certain df
 def melt_and_join(meta_df, unique_id, join_df):
     """
-    @param meta_df: [`DataFrame`] The dataframe containing all the synonyms (metadata)
+    @param meta_df: [`Dask DataFrame`] The DataFrame containing all the synonyms (metadata)
     @param unique_id: [`string`] The name of the column in the metadata containing the unique IDs
-    @param join_df: [`DataFrame`] THe dataframe containing the primary keys that will be used as
+    @param join_df: [`Dask DataFrame`] THe DataFrame containing the primary keys that will be used as
         foreign keys in the new synonyms df
 
     @return [`DataFrame`] The synonys dataframe, with a PK, FK based on join_df, and all unique synonyms
     """
+    join_df['id'] = join_df.index
+
     # Convert wide meta_df to long table
     # Drop 'variable' col (leave only unique ID and synonyms), drop duplicates
-    synonyms = pd.melt(meta_df, id_vars=[unique_id])[
+    synonyms = dd.melt(meta_df, id_vars=[unique_id])[
         [unique_id, 'value']].drop_duplicates()
 
     # Drop all rows where value is NA
-    synonyms = synonyms[synonyms['value'].notna()]
+    synonyms = synonyms[synonyms['value'].notnull()]
 
     # Join with join_df based on unique_id
-    synonyms = pd.merge(synonyms, join_df, left_on=unique_id,
+    synonyms = dd.merge(synonyms, join_df, left_on=unique_id,
                         right_on='name', how='left')[['id', 'value']]
+    if synonyms[synonyms['id'].isna()].shape[0].compute() > 0:
+        print(f'ERROR - some rows did not join to a {unique_id}!')
+    
+    synonyms['id'] = synonyms['id'].astype(pd.Int64Dtype())
 
     return synonyms
 
@@ -132,17 +140,13 @@ drugbank_file = "drugbank_targets_has_ref_has_uniprot.csv"
 uniprot_ensemble_file = "uniprot_ensembl_mappings.csv"
 
 
-def build_metadata_dfs(join_dfs, uniprot_ensemble_file, metdata_path):
+def build_metadata_dfs(join_dfs, uniprot_ensemble_file, metdata_path, write_file_path):
     gene_mappings_df = get_metadata(uniprot_ensemble_file, metadata_path)
     target_file_path = os.path.join(metadata_path, 'target')
     target_df = build_target_df(target_file_path, gene_mappings_df, join_dfs['gene'])
     #drug_target_df = build_drug_target_df(target_df, join_dfs['drug'])
         #TODO: generalize drug-target mappings
-
-    # TODO: how to pass this many parameters
-    cell_syn_df = cell_synonyms(join_dfs['cell'], cell_syns_file, metadata_path)
-    tissue_syn_df = tissue_synonyms(join_dfs['tissue'], cell_syns_file, metadata_path)
-    drug_syn_df = drug_synonyms(join_dfs['drug'], drug_syns_file, metadata_path)
+    
 
 
 #TODO - generalize so it goes through all targets (ChEMBL, etc.)
@@ -155,7 +159,7 @@ def build_target_df(target_file_path, gene_mappings_df, gene_df):
     @param gene_mappings_df: [`DataFrame`] A table mapping UniProt IDs to EnsemlGene IDs
     @return: [`DataFrame`] A table of target to gene mappings.
     """
-    # Get all target files (Drugbank, ChemBL, etc.)
+    # Get all target files (Drugbank, ChEMBL, etc.)
     target_files = glob.glob(target_file_path)
     if len(target_files) == 0:
         raise ValueError(
