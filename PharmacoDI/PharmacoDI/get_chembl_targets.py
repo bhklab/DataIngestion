@@ -10,6 +10,8 @@ def get_chembl_targets(target_file):
     """
     Get all ChEMBL targets in humans and write them to a table.
 
+    :target_file: full file path to where the target table should be written
+    :return: a DataFrame containing all targets from ChEMBL
     """
     # Initiate connection to target table
     target = new_client.target
