@@ -3,15 +3,98 @@ import os
 import re
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
+from datatable import dt, fread, iread, join, by, rbind, cbind, f
+import time
+
+data_dir = os.path.join('data', 'procdata')
+output_dir = os.path.join('data', 'latest')
+
+tables = ["tissue", "drug", "gene", "dataset"]
 
 
-read_file_path = os.path.join('data', 'procdata')
-write_file_path = os.path.join('data', 'latest')
-psets = ['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1',
-         'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']
+def load_table(name, data_dir):
+    """
+    Load all PSet tables with name into a datatable and reindex the rows.
+
+    @name: [`string`] The name of the table
+    @data_dir: [`string`] File path to the directory with all PSet tables
+    @return: [`datatable.Frame`] A datatable containing all rows from all PSets
+    """
+    # Get all files
+    files = glob.glob(os.path.join(data_dir, '**', f'*{name}.csv'))
+    # Filter so that file path are '{data_dir}/{pset}/{pset}_{name}.csv'
+    files = [file_name for file_name in files if re.search(data_dir + r'/(\w+)/\1_cell.csv$', file_name)]
+    # Read and concatenate tables
+    dt = rbind(*iread(files, sep=','))
+    # Drop duplicates
+    dt = dt[0, :, by(dt.names)]
+    # Reindex datatable
+    dt[:, 'id'] = np.arange(dt.nrows) + 1
+    return dt
 
 
+def rename_and_key(dt, join_col, og_col='name'):
+    """
+    Prepare dt to be joined with other tables by renaming the column
+    on which it will be joined and by keying it.
+
+    @join_col: [`string`] The name of the join column in other tables
+                            (ex. 'tissue_id', 'cell_id', etc.)
+    @og_col: [`string`] The name of the join column in the join table
+    """
+    # Rename primary key to match foreign key name (necessary for joins)
+    dt.names = {og_col: join_col}
+    # Set the key
+    dt.key = join_col
+    return dt # Not necessary? dt passed by reference
+
+
+def join_tables(dt1, dt2, join_col):
+    """
+    Join dt2 and dt1 with
+
+    @dt1: [`datatable.Frame`] The datatable with the foreign key
+    @dt2: [`datatable.Frame`] The join table (ex. tissue datatable)
+    @join_col: [`string`] The name of the columns on which the tables
+                            will be joined (ex. 'tissue_id')
+    """
+    if (join_col not in dt1.names) or (join_col not in dt2.names):
+        print('{join_col} is missing from one or both of the datatables passed!',
+              'Make sure you have prepared dt2 using rename_and_key().')
+        return None
+
+    # Only select necessary rows from dt2
+    join_dt = dt2[:, ['id', join_col]]
+    # Join tables, then rename the join col and drop it
+    dt = dt1[:, :, join(join_dt)]
+    dt.names = {join_col: 'drop', 'id': join_col}
+    del dt[:, 'drop']
+    return dt
+
+
+def write_table(dt, name, output_dir):
+    """
+    Write datatable dt to output_dir in a .csv file.
+
+    @dt: [`datatable.Frame`] The 
+    @name: [`string`] The name of the table
+    @output_dir: [`string`] The output directory where tables are stored.
+    """
+    dt.to_csv(os.path.join(output_dir, name, f'{name}.csv'))
+
+
+def load_join_write(name, data_dir, output_dir, foreign_keys, join_tables=None):
+    dt = load_table(name, data_dir)
+    if foreign_keys and not join_tables:
+        print(f'ERROR: The {name} table has foreign keys {foreign_keys}'
+                'but you have not passed any join_tables.')
+        return None
+    rename_and_key(dt, join_col, og_col='name')
+    join_tables(dt1, dt2, join_col)
+    write_table(dt, name, output_dir)
+
+"""
+# deprecated
 def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1', 'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']):
     """
     Given the name of a table and a file_path to all PSet tables,
@@ -21,7 +104,7 @@ def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1'
     :param: file_path string - File path to all processed data (all PSet tables)
     :return: list[DataFrame] - List of Dask DataFrames, one from each PSet
     """
-    dfs = []
+    dfs = {pset: dt.fread(os.path.join(file_path, pset, name, f'{pset}_{name}.csv')) for name in tables for pset in psets}
 
     for pset in psets:
         # Check that this pset has this table
@@ -29,39 +112,43 @@ def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1'
         if os.path.exists(pset_path):
             if len(os.listdir(pset_path)) == 1:
                 # Written as a single CSV file with pandas read_csv
-                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}.csv', dtype={'symbol': 'object'}))
+                dfs.append(dt.fread(f'{pset_path}/{pset}_{name}.csv', dtype={'symbol': 'object'}))
             else:
                 # Written as many CSVs with Dask
-                dfs.append(dd.read_csv(f'{pset_path}/{pset}_{name}-*.csv', dtype={'symbol': 'object'}))
+                dfs.append(dt.fread(f'{pset_path}/{pset}_{name}-*.csv', dtype={'symbol': 'object'}))
 
     return dfs
 
 
+# deprecated
 def concat_tables(df_list, chunksize=500000):
     """
     Concatenate all DataFrames in df_list. Also drops duplicate rows
     and resets index to start at 1 and increment each row.
 
-    :param: df_list list[DataFrame] List of Dask DataFrames to be concatenated
-    :return: DataFrame A single DataFrame containing all rows of the dfs in df_list
+    @param df_list: [`list[DataFrame]`] The list of Dask DataFrames to be concatenated
+    @return: [`DataFrame`] A single DataFrame containing all rows of the dfs in df_list
     """
     # Dask concat all dfs in df_list
     df = dd.concat(df_list)
 
-    # Drop id column (old index)
+    # Drop id column (old index) and any duplicate rows
     if 'id' in df.columns:
         df = df.drop('id', axis=1)
-
-    # Drop duplicate rows
     df = df.drop_duplicates()
 
-    # Repartition into partitions, each with chunksize rows
-    num_rows = df.shape[0].compute()  # This may take a while
-    df = df.repartition(npartitions=(num_rows // chunksize + 1))
+    # NOTE: originally concat was putting them all into the same partition
+    # however now it seems to be preserving partitions so no longer necessary to repartition
+    # Repartition into partitions that have chunksize rows
+    #num_rows = df.shape[0].compute()  # This may take a while
+    #df = df.repartition(npartitions=(num_rows // chunksize + 1))
+    #df = df.repartition(npartitions=sum([df.npartitions for df in df_list]))
+    #df = df.repartition(partition_size='15MB')
 
     return df
 
 
+# deprecated
 def reindex_table(df):
     """
     Reindex table so that its primary key follows SQL standards,
@@ -87,7 +174,8 @@ def reindex_table(df):
     return df
 
 
-def write_table(df, name, file_path):
+# deprecated
+def write_table_old(df, name, file_path):
     """
     Write table to file_path
     """
@@ -105,6 +193,7 @@ def write_table(df, name, file_path):
     dd.to_csv(df, os.path.join(df_path, f'{name}-*.csv'))
 
 
+# deprecated
 def load_concat_write(name, read_file_path, write_file_path):
     """
     Given the name of the table, and read and write file path, read all
@@ -133,14 +222,32 @@ def load_join_table(name, file_path):
     return dd.read_csv(f'{os.path.join(file_path, name, name)}-*.csv')
 
 
-def safe_merge(df1, df2, fk_name, right_on='name'):
+# deprecated
+def prepare_join_table(join_df):
+    """
+    Transform the join_df so that its current index is stored in an 'id'
+    column and its index is replaced by the 'name' column (for faster
+    joins). Drop all other columns
+
+    @param join_df: [`Dask DataFrame`] A table that has already been
+                    written to disk, but which is kept in memory for
+                    future joins
+    @return: [`Dask DataFrame`] A copy of the table, but prepped for joins
+    """
+    join_df = join_df[['name']].copy()
+    join_df['id'] = join_df.index
+    join_df = join_df.set_index(['name'])
+    return join_df
+
+
+# deprecated
+def safe_merge(df1, df2, fk_name, how='left'):
     """
     Given two Dask DataFrames, performs a left join to add a foreign key from
     df2 to df1. By default, the function will join on 'name' in df2 (ex. referring
     to the gene name, drug name, etc.) and on fk_name in df1.
 
-    Once the join occurs, the joining columns will be dropped, and only the forein
-    ID column will remain, which will be renamed fk_name. safe_merge also prints a 
+    Once the join occurs, the forein will be renamed fk_name. safe_merge also prints a 
     warning if not all rows in df1 were matched to a record in df2.
 
     @param df1: [`DataFrame`] The DataFrame acquiring a foreign key
@@ -152,33 +259,29 @@ def safe_merge(df1, df2, fk_name, right_on='name'):
     @return: [`DataFrame`] The joined DataFrame (df1 but with a foreign key corresponding
                             to the primary key of df2)
     """
-    # Make copy of relevant cols of df2 so you don't have to drop all the other ones after merge
-    df2 = df2[[right_on]].copy()
-    df2['id'] = df2.index
-    # Rename df2 FK column to avoid naming conflicts (since df1 will probably have 'name' col too)
-    df2 = df2.rename(columns={right_on: f'{fk_name}_{right_on}'})
-    right_on = f'{fk_name}_{right_on}'
+    # Reindex for better join speed (set_index is expensive in Dask)
+    #df1 = df1.set_index([fk_name])
 
     # Join DataFrames
-    join_df = dd.merge(df1, df2, left_on=fk_name,
-                       right_on=right_on, how='left')
+    join_df = dd.merge(df1, df2, left_on=fk_name, right_index=True, how=how)
+    #join_df = join_df.drop(columns=fk_name)
 
-    # Remove join columns
-    join_df = join_df.drop(columns=[fk_name, right_on])
-    # Rename df2 id col to fk_name
+    # Rename df2 id col to fk_name and cast as int
     join_df = join_df.rename(columns={'id': fk_name})
-    # Cast FK column as int
-    join_df[fk_name] = join_df[fk_name].astype(pd.Int64Dtype())
+    #join_df = join_df[fk_name].astype(pd.Int64Dtype())
 
     # Check if any rows did not join properly with dataset
-    # TODO - consider using validate param instead; consider throwing an error
-    if join_df[join_df[fk_name].isna()].shape[0].compute() > 0:
-        print(f'ERROR - some rows did not join to a {fk_name}!')
+    t1 = time()
+    check_df = join_df.compute(scheduler='processes')
+    t2 = time()
+    # if join_df[join_df[fk_name].isna()].shape[0].compute(scheduler='processes') > 0:
+    #     print(f'ERROR - some rows did not join to a {fk_name}!')
 
     return join_df
 
 
-def load_join_write(name, fks, join_dfs, read_file_path, write_file_path):
+# deprecated
+def load_join_write_old(name, fks, join_dfs, read_file_path, write_file_path):
     """
     Given the name to a table and a list of its foreign keys, load
     all PSet tables of that name from read_file_path, concatenate 
@@ -207,7 +310,7 @@ def load_join_write(name, fks, join_dfs, read_file_path, write_file_path):
     write_table(df, name, write_file_path)
 
     return df
-
+"""
 
 # TODO - similar names to build_pset_tables, should I change it to be clearer?
 def build_primary_tables(read_file_path, write_file_path):
@@ -226,6 +329,11 @@ def build_primary_tables(read_file_path, write_file_path):
     gene_df = load_concat_write('gene', read_file_path, write_file_path)
     dataset_df = load_concat_write('dataset', read_file_path, write_file_path)
 
+    # Transform tables to be used for later joins
+    tissue_df = prepare_join_table(tissue_df)
+    drug_df = prepare_join_table(drug_df)
+    gene_df = prepare_join_table(gene_df)
+    dataset_df = prepare_join_table(dataset_df)
     return {'tissue': tissue_df, 'drug': drug_df, 'gene': gene_df, 'dataset': dataset_df}
 
 
@@ -245,7 +353,7 @@ def build_secondary_tables(join_dfs, read_file_path, write_file_path):
     """
     # Build cell table and add to join_dfs dictionary
     cell_df = load_join_write('cell', ['tissue'], join_dfs, read_file_path, write_file_path)
-    join_dfs['cell'] = cell_df
+    join_dfs['cell'] = prepare_join_table(cell_df)
 
     # Build annotation tables
     load_join_write('drug_annotation', ['drug'], join_dfs,
@@ -258,8 +366,9 @@ def build_secondary_tables(join_dfs, read_file_path, write_file_path):
     load_join_write('mol_cell', ['cell', 'dataset'], join_dfs,
                     read_file_path, write_file_path)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    #load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
-    #                    read_file_path, write_file_path)
+    load_join_write('dataset_statistics', ['dataset'], join_dfs, read_file_path, write_file_path)
+    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
+                        read_file_path, write_file_path)
 
     return join_dfs
 
