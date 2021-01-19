@@ -7,10 +7,9 @@ from datatable import dt, fread, iread, join, by, rbind, cbind, f
 import time
 
 data_dir = os.path.join('data', 'procdata')
-output_dir = os.path.join('data', 'latest')
+output_dir = os.path.join('data', 'demo')
 
-tables = ["tissue", "drug", "gene", "dataset"]
-
+# TODO: change printed errors to actual errors
 
 def load_table(name, data_dir):
     """
@@ -23,19 +22,19 @@ def load_table(name, data_dir):
     # Get all files
     files = glob.glob(os.path.join(data_dir, '**', f'*{name}.csv'))
     # Filter so that file path are '{data_dir}/{pset}/{pset}_{name}.csv'
-    files = [file_name for file_name in files if re.search(data_dir + r'/(\w+)/\1_cell.csv$', file_name)]
+    files = [file_name for file_name in files if re.search(data_dir + r'/(\w+)/\1_' + name + '.csv$', file_name)]
     # Read and concatenate tables
-    dt = rbind(*iread(files, sep=','))
+    df = rbind(*iread(files, sep=','))
     # Drop duplicates
-    dt = dt[0, :, by(dt.names)]
-    # Reindex datatable
-    dt[:, 'id'] = np.arange(dt.nrows) + 1
-    return dt
+    # (groups by all columns and selects only the first row from each group)
+    df = df[0, :, by(df.names)]
+
+    return df
 
 
-def rename_and_key(dt, join_col, og_col='name'):
+def rename_and_key(df, join_col, og_col='name'):
     """
-    Prepare dt to be joined with other tables by renaming the column
+    Prepare df to be joined with other tables by renaming the column
     on which it will be joined and by keying it.
 
     @join_col: [`string`] The name of the join column in other tables
@@ -43,57 +42,57 @@ def rename_and_key(dt, join_col, og_col='name'):
     @og_col: [`string`] The name of the join column in the join table
     """
     # Rename primary key to match foreign key name (necessary for joins)
-    dt.names = {og_col: join_col}
+    df.names = {og_col: join_col}
+    # Only select necessary rows
+    df = df[:, ['id', join_col]]
     # Set the key
-    dt.key = join_col
-    return dt # Not necessary? dt passed by reference
+    df.key = join_col
+    return df # Not necessary? df passed by reference
 
 
-def join_tables(dt1, dt2, join_col):
+def join_tables(df1, df2, join_col):
     """
-    Join dt2 and dt1 with
+    Join df2 and df1 based on join_col.
 
-    @dt1: [`datatable.Frame`] The datatable with the foreign key
-    @dt2: [`datatable.Frame`] The join table (ex. tissue datatable)
+    @df1: [`datatable.Frame`] The datatable with the foreign key
+    @df2: [`datatable.Frame`] The join table (ex. tissue datatable)
     @join_col: [`string`] The name of the columns on which the tables
                             will be joined (ex. 'tissue_id')
     """
-    if (join_col not in dt1.names) or (join_col not in dt2.names):
-        print('{join_col} is missing from one or both of the datatables passed!',
-              'Make sure you have prepared dt2 using rename_and_key().')
+    if (join_col not in df1.names) or (join_col not in df2.names):
+        print(f'{join_col} is missing from one or both of the datatables passed!',
+              'Make sure you have prepared df2 using rename_and_key().')
         return None
 
-    # Only select necessary rows from dt2
-    join_dt = dt2[:, ['id', join_col]]
     # Join tables, then rename the join col and drop it
-    dt = dt1[:, :, join(join_dt)]
-    dt.names = {join_col: 'drop', 'id': join_col}
-    del dt[:, 'drop']
-    return dt
+    df = df1[:, :, join(df2)]
+    df.names = {join_col: 'drop', 'id': join_col}
+    del df[:, 'drop']
+    return df
 
 
-def write_table(dt, name, output_dir):
-    """
-    Write datatable dt to output_dir in a .csv file.
-
-    @dt: [`datatable.Frame`] The 
-    @name: [`string`] The name of the table
-    @output_dir: [`string`] The output directory where tables are stored.
-    """
-    dt.to_csv(os.path.join(output_dir, name, f'{name}.csv'))
-
-
-def load_join_write(name, data_dir, output_dir, foreign_keys, join_tables=None):
-    dt = load_table(name, data_dir)
+def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None):
+    df = load_table(name, data_dir)
     if foreign_keys and not join_tables:
         print(f'ERROR: The {name} table has foreign keys {foreign_keys}'
                 'but you have not passed any join_tables.')
         return None
-    rename_and_key(dt, join_col, og_col='name')
-    join_tables(dt1, dt2, join_col)
-    write_table(dt, name, output_dir)
+    #rename_and_key(df, join_col, og_col='name')
+    for fk in foreign_keys:
+        df = join_tables(df, join_dfs[fk], fk+'_id')
+    
+    # Index datatable
+    df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
 
-"""
+    # Write to .csv
+    df.to_csv(os.path.join(output_dir, f'{name}.csv'))
+    return df
+
+# from scripts.join_pset_tables import *
+# tissue_df = load_join_write('tissue', data_dir, output_dir)
+# join_dfs = { 'tissue': rename_and_key(tissue_df, 'tissue_id')}
+# cell_df = load_join_write('cell', data_dir, output_dir, ['tissue'],join_dfs)
+
 # deprecated
 def load_pset_tables(name, file_path, psets=['CTRPv2', 'FIMM', 'gCSI', 'GDSC_v1', 'GDSC_v2', 'GRAY', 'UHNBreast', 'CCLE']):
     """
@@ -268,7 +267,7 @@ def safe_merge(df1, df2, fk_name, how='left'):
 
     # Rename df2 id col to fk_name and cast as int
     join_df = join_df.rename(columns={'id': fk_name})
-    #join_df = join_df[fk_name].astype(pd.Int64Dtype())
+    #join_df = join_df[fk_name].astype(pd.Int64dfype())
 
     # Check if any rows did not join properly with dataset
     t1 = time()
@@ -310,7 +309,7 @@ def load_join_write_old(name, fks, join_dfs, read_file_path, write_file_path):
     write_table(df, name, write_file_path)
 
     return df
-"""
+
 
 # TODO - similar names to build_pset_tables, should I change it to be clearer?
 def build_primary_tables(read_file_path, write_file_path):
@@ -324,10 +323,10 @@ def build_primary_tables(read_file_path, write_file_path):
                                         tables, with names as keys
     """
     # Load, concatenate, and write primary tables to disk
-    tissue_df = load_concat_write('tissue', read_file_path, write_file_path)
-    drug_df = load_concat_write('drug', read_file_path, write_file_path)
-    gene_df = load_concat_write('gene', read_file_path, write_file_path)
-    dataset_df = load_concat_write('dataset', read_file_path, write_file_path)
+    tissue_df = load_join_write('tissue', data_dir, output_dir)
+    drug_df = load_join_write('drug', data_dir, output_dir)
+    gene_df = load_join_write('gene', data_dir, output_dir)
+    dataset_df = load_join_write('dataset', data_dir, output_dir)
 
     # Transform tables to be used for later joins
     tissue_df = prepare_join_table(tissue_df)
