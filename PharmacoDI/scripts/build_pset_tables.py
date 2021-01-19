@@ -3,15 +3,12 @@ import glob
 import re
 import pandas as pd
 import numpy as np
-import dask.dataframe as dd
+from datatable import dt, fread, iread, Frame
 
 # the directory where you want to store the tables (processed data)
 file_path = 'procdata'
-gene_sig_file_path = os.path.join(
+gene_sig_dir = os.path.join(
     'data', 'rawdata', 'gene_signatures')  # the directory with data for gene_drugs
-
-# the maximum number of rows in a pandas df that can be written to a csv in a reasonable amount of time
-dask_threshold = 1000000
 
 
 def build_pset_tables(pset_dict, pset_name, file_path):
@@ -46,7 +43,7 @@ def build_pset_tables(pset_dict, pset_name, file_path):
     # Build gene drugs table
     print('Building gene drug table...')
     pset_dfs['gene_drug'] = build_gene_drug_df(
-        gene_sig_file_path, pset_name)
+        gene_sig_dir, pset_name)
 
     # Build summary/stats tables
     print('Building summary/stats tables...')
@@ -88,19 +85,14 @@ def write_pset_table(pset_df, df_name, pset_name, df_dir):
 
     # Rename the index
     pset_df.index.rename('id', inplace=True)
+    
+    # Convert to datatable Frame for fast write to disk
+    pset_df = Frame(pset_df)
 
     # Write PSet table to CSV
     print(f'Writing {df_name} table to {df_path}...')
-    if len(pset_df.index) < dask_threshold:
-        # Use pandas to convert df to csv
-        pset_df.to_csv(os.path.join(
-            df_path, f'{pset_name}_{df_name}.csv'), index=True)
-    else:
-        # Convert pandas df into dask df
-        dask_df = dd.from_pandas(pset_df, chunksize=500000)
-        # Write dask_df to csv
-        dd.to_csv(dask_df, os.path.join(
-            df_path, f'{pset_name}_{df_name}-*.csv'), index=True)
+    # Use datatable to convert df to csv
+    pset_df.to_csv(os.path.join(df_path, f'{pset_name}_{df_name}.csv'))
 
 
 # --- PRIMARY TABLES --------------------------------------------------------------------------
@@ -282,16 +274,14 @@ def build_dose_response_df(pset_dict, experiment_df):
     dose = pset_dict['sensitivity']['raw.Dose']
     response = pset_dict['sensitivity']['raw.Viability']
 
-    # rename columns so they can be coerced to int later
+    # Rename columns so they can be coerced to int later
     dose_pattern = dose.columns[1][:-1]
     rename_dict = {f'{dose_pattern}{n}': str(
         n) for n in np.arange(1, dose.shape[0])}
-
     dose.rename(columns=rename_dict, inplace=True)
     response.rename(columns=rename_dict, inplace=True)
 
-    # reshape the DataFrames using melt and pivot to go from 'wide' to 'long' or back, respectively
-    # these are much faster than using Python loops because all of the looping is done in the Pandas  C++ code
+    # Reshape the DataFrames using melt to go from 'wide' to 'long'
     dose = dose.melt(id_vars='.exp_id', value_name='dose',
                      var_name='dose_id').dropna()
     dose['dose_id'] = dose.dose_id.astype('int')
@@ -299,11 +289,11 @@ def build_dose_response_df(pset_dict, experiment_df):
         id_vars='.exp_id', value_name='response', var_name='dose_id').dropna()
     response['dose_id'] = response.dose_id.astype('int')
 
-    # set indexes for faster joins (~3x)
+    # Set indices for faster joins (~3x)
     dose.set_index(['.exp_id', 'dose_id'], inplace=True)
     response.set_index(['.exp_id', 'dose_id'], inplace=True)
 
-    # because I set indexes on both table I don't need to specify on
+    # Join on index
     dose_response_df = pd.merge(
         dose, response, left_index=True, right_index=True).reset_index()
 
@@ -391,23 +381,23 @@ def read_gene_sig(pset_name, file_path):
     return pd.read_csv(pset_file[0])
 
 
-def build_gene_drug_df(gene_sig_file_path, pset_name):
+def build_gene_drug_df(gene_sig_dir, pset_name):
     """
     TODO - ask Chris to explain this table again
 
-    @param gene_sig_file_path: [`string`] The file path to the directory containing the gene
+    @param gene_sig_dir: [`string`] The file path to the directory containing the gene
         signatures for each PSet
     @param pset_name: [`string`] The name of the PSet
     @return: [`DataFrame`] The gene_drugs table for this PSet, containing all stats (?)
     """
     # If gene signature file doesn't exist, return empty DataFrame
-    if not os.path.exists(os.path.join(gene_sig_file_path, pset_name)):
+    if not os.path.exists(os.path.join(gene_sig_dir, pset_name)):
         print(
-            f'WARNING: gene signature annotations file does not exist for {pset_name} in {gene_sig_file_path}')
+            f'WARNING: gene signature annotations file does not exist for {pset_name} in {gene_sig_dir}')
         return pd.DataFrame()
 
     # Get gene_sig_df from gene_sig_file
-    gene_sig_df = read_gene_sig(pset_name, gene_sig_file_path)
+    gene_sig_df = read_gene_sig(pset_name, gene_sig_dir)
 
     # Extract relevant columns
     gene_drug_df = gene_sig_df[[
