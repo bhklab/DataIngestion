@@ -70,21 +70,26 @@ def join_tables(df1, df2, join_col):
     return df
 
 
+def index_and_write(df, name, output_dir):
+    # Index datatable
+    df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
+    # Write to .csv
+    df.to_csv(os.path.join(output_dir, f'{name}.csv'))
+    return df
+
+
 def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None):
     df = load_table(name, data_dir)
     if foreign_keys and not join_tables:
         print(f'ERROR: The {name} table has foreign keys {foreign_keys}'
                 'but you have not passed any join_tables.')
         return None
-    #rename_and_key(df, join_col, og_col='name')
+
     for fk in foreign_keys:
         df = join_tables(df, join_dfs[fk], fk+'_id')
     
-    # Index datatable
-    df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
-
-    # Write to .csv
-    df.to_csv(os.path.join(output_dir, f'{name}.csv'))
+    df = index_and_write(df, name, output_dir)
+    
     return df
 
 
@@ -118,14 +123,14 @@ def build_secondary_tables(join_dfs, data_dir, output_dir):
     """
     Build all secondary tables, i.e., all tables that have foreign keys corresponding
     to primary keys of primary tables. The function reads PSet tables from 
-    data_dir, concatenates and joins them with tables from primary_dfs, and 
+    data_dir, concatenates and joins them with tables from join_dfs, and 
     writes them to output_dir.
 
-    @param join_dfs: [`dict(string: DataFrame)`] A dictionary of all the primary
+    @param join_dfs: [`dict(string: datatable.Frame)`] A dictionary of all the primary
                                                     tables, with names as keys
     @param data_dir: [`string`] The file path to read the PSet tables
     @param output_dir: [`string`] The file path to write the final tables
-    @return: [`dict(string: DataFrame)`] The updated dictionary of join tables
+    @return: [`dict(string: datatable.Frame)`] The updated dictionary of join tables
     """
     # Build cell table and add to join_dfs dictionary
     cell_df = load_join_write('cell', data_dir, output_dir, ['tissue'], join_dfs)
@@ -151,7 +156,7 @@ def build_experiment_tables(join_dfs, data_dir, output_dir):
     and profile tables. Drop the 'name' column from the experiment table before
     writing to a CSV.
 
-    @param join_dfs: [`dict(string: DataFrame)`]
+    @param join_dfs: [`dict(string: datatable.Frame)`]
     @param data_dir: [`string`] The file path to the PSet tables
     @param output_dir: [`string`] The file path to the final tables
     @return: [`None`]
@@ -185,7 +190,7 @@ def build_experiment_tables(join_dfs, data_dir, output_dir):
 def build_final_tables(data_dir, output_dir):
     join_dfs = build_primary_tables(data_dir, output_dir)
     join_dfs = build_secondary_tables(join_dfs, data_dir, output_dir)
-    build_experiment_tables(join_dfs, data_dir, output_dir)
+    #build_experiment_tables(join_dfs, data_dir, output_dir)
     return join_dfs
 
 
