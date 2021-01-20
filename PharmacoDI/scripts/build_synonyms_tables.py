@@ -3,44 +3,41 @@ import re
 import glob
 import numpy as np
 import pandas as pd
-import dask.dataframe as dd
-from scripts.join_pset_tables import *
+from datatable import Frame
+from scripts.join_pset_tables import index_and_write
 
-read_file_path = os.path.join('data', 'procdata')
-write_file_path = os.path.join('data', 'latest')
-metadata_path = os.path.join('data', 'metadata')
+output_dir = os.path.join('data', 'demo')
+metadata_dir = os.path.join('data', 'metadata')
 
-cell_meta_file = "cell_annotation_all.csv"
-tissue_meta_file = "cell_annotation_all.csv"
-drug_meta_file = "drugs_with_ids.csv"
+cell_file = "cell_annotation_all.csv"
+tissue_file = "cell_annotation_all.csv"
+drug_file = "drugs_with_ids.csv"
 
+# TODO: currently excluding cell synonyms that dont map to a cell
 
-def get_metadata(file_name, metadata_path):
+def get_metadata(file_name, metadata_dir):
     # Find correct metadata annotations CSV file
     annotations_file = glob.glob(
-        os.path.join(metadata_path, file_name))[0]
-    if annotations_file is None:
+        os.path.join(metadata_dir, file_name))
+    if not annotations_file:
         raise ValueError(
-            f'No metadata file named {file_name} could be found in {metadata_path}')
+            f'No metadata file named {file_name} could be found in {metadata_dir}')
     
     # Read csv file and return df
-    return pd.read_csv(annotations_file, index_col=[0])
+    return pd.read_csv(annotations_file[0], index_col=[0])
 
 
 # --- SYNONYMS TABLES --------------------------------------------------------------------------
 
-# TODO - 3 rows; 954 rows
-def build_cell_synonyms_df(cell_df, cell_meta_file, metadata_path, write_file_path):
-    # Get metadata file
-    cell_metadata = get_metadata(cell_meta_file, metadata_path)
+def build_cell_synonym_df(cell_file, metadata_dir, output_dir):
+    # Get metadata file and cell_df
+    cell_metadata = get_metadata(cell_file, metadata_dir)
+    cell_df = pd.read_csv(os.path.join(output_dir, 'cell.csv'))
 
     # Find all columns relevant to cellid
     pattern = re.compile('cellid')
     cell_columns = cell_metadata[[
         col for col in cell_metadata.columns if pattern.search(col)]]
-
-    # Convert cell columns to Dask dataframe to enable merging
-    cell_columns = dd.from_pandas(cell_columns, chunksize=500000)
 
     # Get all unique synonyms and join with cell_df
     cell_synonym_df = melt_and_join(cell_columns, 'unique.cellid', cell_df)
@@ -49,22 +46,21 @@ def build_cell_synonyms_df(cell_df, cell_meta_file, metadata_path, write_file_pa
     # Add blank col for dataset_id (TODO)
     cell_synonym_df['dataset_id'] = np.nan
 
-    # Reindex and write to disk
-    cell_synonym_df = reindex_table(cell_synonym_df)
-    write_table(cell_synonym_df, 'cell_synonym', write_file_path)
+    # Convert to datatable.Frame for fast write to disk
+    df = Frame(cell_synonym_df)
+    df = index_and_write(df, 'cell_synonym', output_dir)
+    return df
     
 
-def build_tissue_synonyms_df(tissue_df, tissue_meta_file, metadata_path, write_file_path):
-    # Get metadata file
-    tissue_metadata = get_metadata(tissue_meta_file, metadata_path)
+def build_tissue_synonym_df(tissue_file, metadata_dir, output_dir):
+    # Get metadata file and tissue_df (assume taht tissue_df is also in output_dir)
+    tissue_metadata = get_metadata(tissue_file, metadata_dir)
+    tissue_df = pd.read_csv(os.path.join(output_dir, 'tissue.csv'))
 
     # Find all columns relevant to tissueid
     pattern = re.compile('tissueid')
     tissue_cols = tissue_metadata[[
         col for col in tissue_metadata.columns if pattern.search(col)]]
-
-    # Convert tissue columns to Dask dataframe to enable merging
-    tissue_cols = dd.from_pandas(tissue_cols, chunksize=500000)
 
     # Get all unique synonyms and join with tissue_df
     tissue_synonym_df = melt_and_join(tissue_cols, 'unique.tissueid', tissue_df)
@@ -73,23 +69,22 @@ def build_tissue_synonyms_df(tissue_df, tissue_meta_file, metadata_path, write_f
     # Add blank col for dataset_id (TODO)
     tissue_synonym_df['dataset_id'] = np.nan
 
-    # Reindex and write to disk
-    tissue_synonym_df = reindex_table(tissue_synonym_df)
-    write_table(tissue_synonym_df, 'tissue_synonym', write_file_path)
+    # Convert to datatable.Frame for fast write to disk
+    df = Frame(tissue_synonym_df)
+    df = index_and_write(df, 'tissue_synonym', output_dir)
+    return df
 
 
-def build_drug_synonyms_df(drug_df, drug_meta_file, metadata_path, write_file_path):
-    # Get metadata file
-    drug_metadata = get_metadata(drug_meta_file, metadata_path)
+def build_drug_synonym_df(drug_file, metadata_dir, output_dir):
+    # Get metadata file and drug_df
+    drug_metadata = get_metadata(drug_file, metadata_dir)
+    drug_df = pd.read_csv(os.path.join(output_dir, 'drug.csv'))
 
     # Find all columns relevant to drugid
     # Right now only FDA col is dropped, but may be more metadata in the future
     pattern = re.compile('drugid')
     drug_cols= drug_metadata[[
         col for col in drug_metadata.columns if pattern.search(col)]]
-
-    # Convert drug columns to Dask dataframe to enable merging
-    drug_cols = dd.from_pandas(drug_cols, chunksize=500000)
 
     # Get all unique synonyms and join with drugs_df
     drug_synonym_df = melt_and_join(drug_cols, 'unique.drugid', drug_df)
@@ -98,9 +93,10 @@ def build_drug_synonyms_df(drug_df, drug_meta_file, metadata_path, write_file_pa
     # Add blank col for dataset_id (TODO)
     drug_synonym_df['dataset_id'] = np.nan
 
-    # Reindex and write to disk
-    drug_synonym_df = reindex_table(drug_synonym_df)
-    write_table(drug_synonym_df, 'drug_synonym', write_file_path)
+    # Convert to datatable.Frame for fast write to disk
+    df = Frame(drug_synonym_df)
+    df = index_and_write(df, 'drug_synonym', output_dir)
+    return df
 
 
 # Helper function for getting all synonyms related to a certain df
@@ -113,23 +109,18 @@ def melt_and_join(meta_df, unique_id, join_df):
 
     @return [`DataFrame`] The synonys dataframe, with a PK, FK based on join_df, and all unique synonyms
     """
-    join_df['id'] = join_df.index
-
     # Convert wide meta_df to long table
     # Drop 'variable' col (leave only unique ID and synonyms), drop duplicates
-    synonyms = dd.melt(meta_df, id_vars=[unique_id])[
+    synonyms = pd.melt(meta_df, id_vars=[unique_id])[
         [unique_id, 'value']].drop_duplicates()
 
     # Drop all rows where value is NA
     synonyms = synonyms[synonyms['value'].notnull()]
 
     # Join with join_df based on unique_id
-    synonyms = dd.merge(synonyms, join_df, left_on=unique_id,
-                        right_on='name', how='left')[['id', 'value']]
-    if synonyms[synonyms['id'].isna()].shape[0].compute() > 0:
-        print(f'ERROR - some rows did not join to a {unique_id}!')
-    
-    synonyms['id'] = synonyms['id'].astype(pd.Int64Dtype())
+    synonyms = pd.merge(synonyms, join_df, left_on=unique_id,
+                        right_on='name', how='inner')[['id', 'value']]
+    synonyms['id'] = synonyms['id'].astype('int')
 
     return synonyms
 
