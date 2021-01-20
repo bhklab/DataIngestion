@@ -193,21 +193,21 @@ def write_table_old(df, name, file_path):
 
 
 # deprecated
-def load_concat_write(name, read_file_path, write_file_path):
+def load_concat_write(name, data_dir, output_dir):
     """
     Given the name of the table, and read and write file path, read all
-    "name" tables (one for each PSet) from the read_file_path, concatenate
-    them, reindex them, and then write them to the write_file_path.
+    "name" tables (one for each PSet) from the data_dir, concatenate
+    them, reindex them, and then write them to the output_dir.
 
     @param name: [`string`] The name of the table
-    @param read_file_path: [`string`] The file path containing the PSet tables
-    @param write_file_path: [`string`] The file path containing the final tables
+    @param data_dir: [`string`] The file path containing the PSet tables
+    @param output_dir: [`string`] The file path containing the final tables
     @return: [`DataFrame`] The final DataFrame that was written to disk
     """
-    df_list = load_pset_tables(name, read_file_path)
+    df_list = load_pset_tables(name, data_dir)
     df = concat_tables(df_list)
     df = reindex_table(df)
-    write_table(df, name, write_file_path)
+    write_table(df, name, output_dir)
     return df
 
 
@@ -280,23 +280,23 @@ def safe_merge(df1, df2, fk_name, how='left'):
 
 
 # deprecated
-def load_join_write_old(name, fks, join_dfs, read_file_path, write_file_path):
+def load_join_write_old(name, fks, join_dfs, data_dir, output_dir):
     """
     Given the name to a table and a list of its foreign keys, load
-    all PSet tables of that name from read_file_path, concatenate 
+    all PSet tables of that name from data_dir, concatenate 
     them, build all the foreign keys by joining to the necessary 
-    tables, and write the final DataFrame to write_file_path.
+    tables, and write the final DataFrame to output_dir.
 
     @param name: [`string`] The name of the table
     @param fks: [`list(string)`] A list of tables to be joined with
     @param join_dfs: [`dict(string: DataFrame)`] A dictionary of tables
                                     to be joined to to build foreign keys
-    @param read_file_path: [`string`] The file path to the PSet tables
-    @param write_file_path: [`string`] The file path to the final tables
+    @param data_dir: [`string`] The file path to the PSet tables
+    @param output_dir: [`string`] The file path to the final tables
     @return: [`DataFrame`] The final DataFrame that was written to disk
     """
     # Load and concatenate all 'name' tables for all PSets
-    df_list = load_pset_tables(name, read_file_path)
+    df_list = load_pset_tables(name, data_dir)
     df = concat_tables(df_list)
 
     # Build all foreign keys by joining with primary tables
@@ -306,21 +306,21 @@ def load_join_write_old(name, fks, join_dfs, read_file_path, write_file_path):
 
     # Reindex the final table and write to disk
     df = reindex_table(df)
-    write_table(df, name, write_file_path)
+    write_table(df, name, output_dir)
 
     return df
 
 
 # TODO - similar names to build_pset_tables, should I change it to be clearer?
-def build_primary_tables(read_file_path, write_file_path):
+def build_primary_tables(data_dir, output_dir):
     """
     Build all the primary tables, i.e., tables that require no joins,
     and return them in a dictionary.
 
-    @param read_file_path: [`string`] The file path to the PSet tables
-    @param write_file_path: [`string`] The file path to the final tables
-    @return: [`dict(string: DataFrame)`] A dictionary of all the primary
-                                        tables, with names as keys
+    @param data_dir: [`string`] The file path to read the PSet tables
+    @param output_dir: [`string`] The file path to write the final tables
+    @return: [`dict(string: datatable.Frame)`] A dictionary of all the primary
+                                                tables, with names as keys
     """
     # Load, concatenate, and write primary tables to disk
     tissue_df = load_join_write('tissue', data_dir, output_dir)
@@ -328,85 +328,104 @@ def build_primary_tables(read_file_path, write_file_path):
     gene_df = load_join_write('gene', data_dir, output_dir)
     dataset_df = load_join_write('dataset', data_dir, output_dir)
 
-    # Transform tables to be used for later joins
-    tissue_df = prepare_join_table(tissue_df)
-    drug_df = prepare_join_table(drug_df)
-    gene_df = prepare_join_table(gene_df)
-    dataset_df = prepare_join_table(dataset_df)
-    return {'tissue': tissue_df, 'drug': drug_df, 'gene': gene_df, 'dataset': dataset_df}
+    # Transform tables to be used for joins
+    dfs = {}
+    dfs['tissue'] = rename_and_key(tissue_df, 'tissue_id')
+    dfs['drug'] = rename_and_key(drug_df, 'drug_id')
+    dfs['gene'] = rename_and_key(gene_df, 'gene_id')
+    dfs['dataset'] = rename_and_key(dataset_df, 'dataset_id')
+    return dfs
 
 
-def build_secondary_tables(join_dfs, read_file_path, write_file_path):
+def build_secondary_tables(join_dfs, data_dir, output_dir):
     """
     Build all secondary tables, i.e., all tables that have foreign keys corresponding
     to primary keys of primary tables. The function reads PSet tables from 
-    read_file_path, concatenates and joins them with tables from primary_dfs, and 
-    writes them to write_file_path.
+    data_dir, concatenates and joins them with tables from primary_dfs, and 
+    writes them to output_dir.
 
     @param join_dfs: [`dict(string: DataFrame)`] A dictionary of all the primary
                                                     tables, with names as keys
-    @param read_file_path: [`string`] The file path to the PSet tables
-    @param write_file_path: [`string`] The file path to the final tables
-    @return: [`dict(string: DataFrame)`] The updated dictionary of tables to
-                                        join with (includes cell table)
+    @param data_dir: [`string`] The file path to read the PSet tables
+    @param output_dir: [`string`] The file path to write the final tables
+    @return: [`dict(string: DataFrame)`] The updated dictionary of join tables
     """
     # Build cell table and add to join_dfs dictionary
-    cell_df = load_join_write('cell', ['tissue'], join_dfs, read_file_path, write_file_path)
-    join_dfs['cell'] = prepare_join_table(cell_df)
+    cell_df = load_join_write('cell', data_dir, output_dir, ['tissue'], join_dfs)
+    join_dfs['cell'] = rename_and_key(cell_df, 'cell_id')
 
     # Build annotation tables
-    load_join_write('drug_annotation', ['drug'], join_dfs,
-                    read_file_path, write_file_path)
-    load_join_write('gene_annotation', ['gene'], join_dfs, read_file_path, write_file_path)
+    load_join_write('drug_annotation', data_dir, output_dir, ['drug'], join_dfs)
+    load_join_write('gene_annotation', data_dir, output_dir, ['gene'], join_dfs)
 
     # Build all other secondary tables
-    load_join_write('dataset_cell', ['dataset', 'cell'], join_dfs,
-                        read_file_path, write_file_path)
-    load_join_write('mol_cell', ['cell', 'dataset'], join_dfs,
-                    read_file_path, write_file_path)
+    load_join_write('dataset_cell', data_dir, output_dir, ['dataset', 'cell'], join_dfs)
+    load_join_write('mol_cell', data_dir, output_dir, ['cell', 'dataset'], join_dfs)
     # mol_cells has Kallisto. not sure why. from CTRPv2
-    load_join_write('dataset_statistics', ['dataset'], join_dfs, read_file_path, write_file_path)
-    load_join_write('gene_drug', ['gene', 'drug', 'dataset', 'tissue'], join_dfs,
-                        read_file_path, write_file_path)
+    load_join_write('dataset_statistics', data_dir, output_dir, ['dataset'], join_dfs)
+    load_join_write('gene_drug', data_dir, output_dir, ['gene', 'drug', 'dataset', 'tissue'], join_dfs)
 
     return join_dfs
 
 
-def build_experiment_tables(join_dfs, read_file_path, write_file_path):
+def build_experiment_tables(join_dfs, data_dir, output_dir):
     """
     Load and process experiment table, then use it to build the dose response
     and profile tables. Drop the 'name' column from the experiment table before
     writing to a CSV.
 
     @param join_dfs: [`dict(string: DataFrame)`]
-    @param read_file_path: [`string`] The file path to the PSet tables
-    @param write_file_path: [`string`] The file path to the final tables
+    @param data_dir: [`string`] The file path to the PSet tables
+    @param output_dir: [`string`] The file path to the final tables
     @return: [`None`]
     """
     # Load all experiments from PSets
-    experiment_df = concat_tables(load_pset_tables('experiment', read_file_path))
+    experiment_df = load_join_write('experiment', data_dir, output_dir, ['cell', 'drug', 'dataset', 'tissue'], join_dfs) 
+    
+    #concat_tables(load_pset_tables('experiment', data_dir))
 
     # Join experiment table and with primary tables
-    for fk in ['cell', 'drug', 'dataset', 'tissue']:
-        join_df = join_dfs[fk]
-        experiment_df = safe_merge(experiment_df, join_df, f'{fk}_id')
+    #for fk in ['cell', 'drug', 'dataset', 'tissue']:
+    #    join_df = join_dfs[fk]
+    #    experiment_df = safe_merge(experiment_df, join_df, f'{fk}_id')
 
     # Reindex experiment table
-    experiment_df = reindex_table(experiment_df)
-
+    #experiment_df = reindex_table(experiment_df)
+    join_dfs['experiment'] = rename_and_key(experiment_df, 'experiment_id')
     # Load and concatenate dose response and profile tables, join with experiment table
-    join_dict = {'experiment': experiment_df}
-    load_join_write('dose_response', ['experiment'], join_dict, read_file_path, write_file_path)
-    load_join_write('profile', ['experiment'], join_dict, read_file_path, write_file_path)
+    #join_dict = {'experiment': experiment_df}
+    load_join_write('dose_response', data_dir, output_dir, ['experiment'], join_dfs)
+    load_join_write('profile', data_dir, output_dir, ['experiment'], join_dfs)
 
     # Drop experiment name from table after joins and write to disk
-    experiment_df = experiment_df.drop(columns=['name'])
-    write_table(experiment_df, 'experiment', write_file_path)
+    del experiment_df[:, 'name']
+    experiment_df.to_csv(os.path.join(output_dir, 'experiment.csv'))
 
+    return join_dfs
+#1019495 rows
 
 # TODO - better name
-def build_final_tables(read_file_path, write_file_path):
-    join_dfs = build_primary_tables(read_file_path, write_file_path)
-    join_dfs = build_secondary_tables(join_dfs, read_file_path, write_file_path)
-    build_experiment_tables(join_dfs, read_file_path, write_file_path)
+def build_final_tables(data_dir, output_dir):
+    join_dfs = build_primary_tables(data_dir, output_dir)
+    join_dfs = build_secondary_tables(join_dfs, data_dir, output_dir)
+    build_experiment_tables(join_dfs, data_dir, output_dir)
     return join_dfs
+
+
+# Duplicate experiment_ids
+"""
+   | name                      count
+-- + ------------------------  -----
+ 0 | drugid_AZD6244_AU565          2
+ 1 | drugid_AZD6244_HCC1187        2
+ 2 | drugid_AZD6244_HCC1806        2
+ 3 | drugid_AZD6244_HCC1954        2
+ 4 | drugid_AZD6244_MCF7           2
+ 5 | drugid_Erlotinib_HCC70        2
+ 6 | drugid_Nilotinib_AU565        2
+ 7 | drugid_Nilotinib_HCC1187      2
+ 8 | drugid_Nilotinib_HCC1806      2
+ 9 | drugid_Nilotinib_HCC1954      2
+10 | drugid_Nilotinib_MCF7         2
+11 | drugid_Sorafenib_HCC70        2
+"""
