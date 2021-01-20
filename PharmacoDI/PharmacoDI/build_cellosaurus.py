@@ -21,6 +21,7 @@ def build_defaultdict(tuple_list):
     return def_dict
 
 
+# Only 1666 rows; try joining with cell synonym df instead ? (TODO)
 def build_cellosaurus_df(cellosaurus_path, output_dir, cell_df):
     """
     Build cellosaurus table.
@@ -69,7 +70,7 @@ def build_cellosaurus_df(cellosaurus_path, output_dir, cell_df):
     # Convert to datatable and join with cell_df
     df = join_tables(dt.Frame(cellosaurus_df), cell_df, 'cell_id')
     df = df[dt.f.cell_id >= 1, :]
-    df = df[:, ['id', 'cell_id', 'identifier', 'accession', 'as', 'sy',
+    df = df[:, ['cell_id', 'identifier', 'accession', 'as', 'sy',
                 'dr', 'rx', 'ww', 'cc', 'st', 'di', 'ox', 'hi', 'oi', 'sx', 'ca']]
     df = index_and_write(df, 'cellosaurus', output_dir)
     return df
