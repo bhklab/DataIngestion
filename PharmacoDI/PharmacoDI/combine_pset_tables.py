@@ -10,8 +10,6 @@ output_dir = os.path.join('data', 'demo')
 
 # TODO: change printed errors to actual errors
 
-# TODO - better name
-
 
 def combine_all_pset_tables(data_dir, output_dir):
     join_dfs = combine_primary_tables(data_dir, output_dir)
