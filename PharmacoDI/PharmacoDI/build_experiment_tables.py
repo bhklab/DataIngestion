@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 from PharmacoDI.build_primary_pset_tables import build_cell_df
 
+
 def build_experiment_tables(pset_dict, pset_name, cell_df=None):
     """
     Build the experiment, dose response, and profile tables for a PSet 
@@ -9,13 +10,13 @@ def build_experiment_tables(pset_dict, pset_name, cell_df=None):
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @param pset_name: [`string`] The name of the PSet
-    @param cell_df: [`DataFrame`] A table of all the cells in the PSet and their tissues
+    @param cell_df: [`pd.DataFrame`] A table of all the cells in the PSet and their tissues
     @return: [`dict`] A dictionary of experiment-related tables
     """
     pset_dfs = {}
     pset_dfs['experiment'] = build_experiment_df(pset_dict, pset_name, cell_df)
     pset_dfs['dose_response'] = build_dose_response_df(pset_dict, pset_name)
-    pset_dfs['profile'] = build_profile_df(pset_dict)
+    pset_dfs['profile'] = build_profile_df(pset_dict, pset_name)
     return pset_dfs
 
 
@@ -25,8 +26,8 @@ def build_experiment_df(pset_dict, pset_name, cell_df=None):
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @param pset_name: [`string`] The name of the PSet 
-    @param cell_df: [`DataFrame`] A table of all the cells in the PSet and their tissues
-    @return: [`DataFrame`] A table containing all experiments in the dataset
+    @param cell_df: [`pd.DataFrame`] A table of all the cells in the PSet and their tissues
+    @return: [`pd.DataFrame`] A table containing all experiments in the dataset
     """
     # Build cell_df if not build already
     if not cell_df:
@@ -64,7 +65,9 @@ def build_dose_response_df(pset_dict, pset_name):
     corresponding to all the doses.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @return: [`DataFrame`] A table with all the dose-response mappings for each experiment
+    @param pset_name: [`string`] The name of the PSet
+    @return: [`pd.DataFrame`] A table with all the dose-response mappings for 
+                                each experiment
     """
     # Get dose and response info from pset
     dose = pset_dict['sensitivity']['raw.Dose']
@@ -99,14 +102,16 @@ def build_dose_response_df(pset_dict, pset_name):
     dose_response_df['dataset_id'] = pset_name
 
     return dose_response_df
-    
 
-def build_profile_df(pset_dict):
+
+def build_profile_df(pset_dict, pset_name):
     """
     TODO: ask Chris
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @return: [`DataFrame`] A table containing all statistics for each profile in the PSet (?)
+    @param pset_name: [`string`] The name of the PSet
+    @return: [`pd.DataFrame`] A table containing all statistics for each profile 
+                                in the PSet (?)
     """
     # Get profiles info
     if 'E_inf' in pset_dict['sensitivity']['profiles'].columns:
@@ -125,5 +130,8 @@ def build_profile_df(pset_dict):
     profile_df['DSS2'] = np.nan
     profile_df['DSS3'] = np.nan
 
-    return profile_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC', 'IC50', 'DSS1', 'DSS2', 'DSS3']]
+    # Add dataset_id for joins
+    profile_df['dataset_id'] = pset_name
 
+    return profile_df[['experiment_id', 'HS', 'Einf', 'EC50', 'AAC',
+                       'IC50', 'DSS1', 'DSS2', 'DSS3', 'dataset_id']]
