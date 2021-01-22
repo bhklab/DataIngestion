@@ -8,32 +8,30 @@ import requests
 drugbank_file = os.path.join(
     "data", "metadata", "drugbank_targets_has_ref_has_uniprot.csv")
 chembl_file = os.path.join('data', 'metadata', 'chembl_drug_targets.csv')
-gene_dir = os.path.join("data", "latest", "gene")
-drug_synonym_dir = os.path.join("data", "latest", "drug_synonym")
-target_file = os.path.join("data", "latest", "target", "target.csv")
-drug_target_file = os.path.join(
-    "data", "latest", "drug_target", "drug_target.csv")
+gene_dir = os.path.join("data", "demo", "gene")
+drug_synonym_dir = os.path.join("data", "demo", "drug_synonym")
+output_dir = os.path.join("data", "demo")
 
 # TODO: need error handling for missing directories
-# TODO: need to update docstrings
 # TODO: need to abstract some functions
 
 
-def bulid_target_tables(drugbank_file, chembl_file, gene_dir, drug_synonym_dir,
-                        target_file, drug_target_file):
+def build_target_tables(drugbank_file, chembl_file, gene_dir, drug_synonym_dir, output_dir):
     """
     Build the target and drug target tables using data from Drugbank
     and ChEMBL.
 
-    :param: drugbank_file The full file path to Drugbank targets
-    :param: chembl_file The full file path to ChEMBL targets
-    :param: gene_dir The directory with the gene table
-    :param: drug_synonym_dir The directory with the drug synonyms table
+    @param drugbank_file: [`string`] The full file path to Drugbank targets
+    @param chembl_file: [`string`] The full file path to ChEMBL targets
+    @param gene_dir: [`string`] The directory with the gene table
+    @param drug_synonym_dir: [`string`] The directory with the drug synonyms table
+    @param output_dir: [`string`] The directory to write final PharmacoDB tables
+    @return: None
     """
     # Get Drugbank data
     drugbank_df = pd.read_csv(drugbank_file)
-    drugbank_df.rename(
-        columns={'polypeptide.external.identifiers.UniProtKB': 'uniprot_id', 'drugName': 'drug_name'}, inplace=True)
+    drugbank_df.rename(columns={'polypeptide.external.identifiers.UniProtKB': 'uniprot_id',
+                                'drugName': 'drug_name'}, inplace=True)
 
     # Get ChEMBL data
     chembl_df = pd.read_csv(chembl_file, index_col=0)
@@ -41,15 +39,21 @@ def bulid_target_tables(drugbank_file, chembl_file, gene_dir, drug_synonym_dir,
                               'accession': 'uniprot_id'}, inplace=True)
 
     target_df = build_target_table(
-        chembl_df, drugbank_df, gene_dir, target_file)
-    build_drug_target_table(chembl_df, drugbank_df, target_df,
-                            drug_synonym_dir, drug_target_file)
+        chembl_df, drugbank_df, gene_dir, output_dir)
+    build_drug_target_table(chembl_df, drugbank_df,
+                            target_df, drug_synonym_dir, output_dir)
 
 
-def build_target_table(chembl_df, drugbank_df, gene_dir, target_file):
+def build_target_table(chembl_df, drugbank_df, gene_dir, output_dir):
     """
     Using data from the Drugbank and ChEMBL drug target files and
     the UniProt API, build the target table.
+
+    @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
+    @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
+    @param gene_dir: [`string`] The directory with the gene table
+    @param output_dir: [`string`] The file path to write the final target table
+    @return: [`pd.DataFrame`] The target table
     """
     # Combine ChEMBL and Drugbank tables to make target table
     target_df = pd.concat([chembl_df[['name', 'uniprot_id']].copy(),
@@ -77,16 +81,23 @@ def build_target_table(chembl_df, drugbank_df, gene_dir, target_file):
     target_df.reset_index(drop=True)
     target_df.index += 1
     target_df.index = target_df.index.rename('id')
-    target_df.to_csv(target_file)
+    target_df.to_csv(os.path.join(output_dir, 'target.csv'))
 
     return target_df
 
 
 def build_drug_target_table(chembl_df, drugbank_df, target_df,
-                            drug_synonym_dir, drug_target_file):
+                            drug_synonym_dir, output_dir):
     """
     Using data from the Drugbank and ChEMBL drug target files and 
     the target table, build the drug target table.
+
+    @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
+    @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
+    @param target_df: [`pd.DataFrame`] The target table
+    @param drug_synonym_dir: [`string`] The directory with the drug synonym table
+    @param output_dir: [`string`] The file path to write the final drug_target table
+    @return: [`pd.DataFrame`] The drug target table
     """
     # Join drugbank df with drug table (TODO: are we really using drug name to map?)
     drug_syn_df = load_drug_synonym_table(drug_synonym_dir)
@@ -108,7 +119,7 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df,
     drug_target_df.reset_index(drop=True)
     drug_target_df.index += 1
     drug_target_df.index = drug_target_df.index.rename('id')
-    drug_target_df.to_csv(drug_target_file)
+    drug_target_df.to_csv(os.path.join(output_dir, 'drug_target.csv'))
 
     return drug_target_df
 
@@ -116,9 +127,10 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df,
 def map_uniprot_to_ensembl(uniprot_ids):
     """
     Use the UniProt API to retrieve the ENSEMBL gene IDs
-    correspondong to the UniProt IDS.
+    corresponding to the UniProt IDS.
 
     @param uniprot_ids: [`list(string)`] A list of UniProt IDs.
+    @return: [`pd.DataFrame`] A table mapping UniProt IDs to ENSEMBL gene IDs.
     """
     # Make API call
     params = {
