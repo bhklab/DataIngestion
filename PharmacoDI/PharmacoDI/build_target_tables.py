@@ -40,6 +40,7 @@ def build_target_tables(drugbank_file, chembl_file, output_dir):
 
     target_df = build_target_table(chembl_df, drugbank_df, output_dir)
     build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir)
+    build_gene_drug_table(chembl_df, drugbank_df, target_df, output_dir)
 
 
 def build_target_table(chembl_df, drugbank_df, output_dir):
@@ -53,38 +54,13 @@ def build_target_table(chembl_df, drugbank_df, output_dir):
     @return: [`datatable.Frame`] The target table
     """
     # Combine ChEMBL and Drugbank tables to make target table
-    target_df = pd.concat([chembl_df[['name', 'uniprot_id']].copy(),
-                           drugbank_df[['name', 'uniprot_id']].copy()])
-    target_df.drop_duplicates(inplace=True)
-    uniprot_ids = pd.Series(pd.unique(target_df['uniprot_id']))
-
-    # Retrieve Uniprot-ENSEMBL gene ID mappings
-    uniprot_ensembl_mappings = pd.concat(
-        parallelize(uniprot_ids, map_uniprot_to_ensembl, 1000))
-    uniprot_ensembl_mappings.drop_duplicates(inplace=True)
-
-    # Join target table with gene table based on uniprot-ensembl mappings
-    target_df = pd.merge(target_df, uniprot_ensembl_mappings,
-                         on='uniprot_id', how='left')
-    # TODO: 3 uniprot ids don't join to a gene id (O90777, P0A953, P0ABF6)
-
-    # Load gene table from output_dir
-    gene_file = os.path.join(output_dir, 'gene.csv')
-    if not os.path.exists(gene_file):
-        raise FileNotFoundError(f"There is no gene file in {output_dir}!")
-    gene_df = pd.read_csv(gene_file)
-    gene_df.rename(columns={'name': 'gene_id'}, inplace=True)
-
-    # Join target table with gene table based on gene name
-    target_df = pd.merge(target_df, gene_df, on='gene_id', how='left')
-    # TODO: 99 rows (excluding gene_id=NA) don't map to any genes in gene table
-    target_df.drop(columns=['uniprot_id', 'gene_id'], inplace=True)
-    target_df.rename(columns={'id': 'gene_id'}, inplace=True)
-    # idk how there are duplicates but there are
+    target_df = pd.concat([chembl_df[['name']].copy(),
+                           drugbank_df[['name']].copy()])
     target_df.drop_duplicates(inplace=True)
 
-    target_df = index_and_write(dt.Frame(target_df), 'target', output_dir)
-    return target_df  # convert to pandas
+    target_df = write_table(dt.Frame(target_df), 'target', output_dir)
+    target_df = rename_and_key(target_df, 'target_id')
+    return target_df
 
 
 def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
@@ -94,7 +70,7 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
 
     @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
     @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
-    @param target_df: [`datatable.Frame`] The target table
+    @param target_df: [`datatable.Frame`] The target table, keyed
     @param output_dir: [`string`] The file path with all final PharmacoDB tables
     @return: [`datatable.Frame`] The drug target table
     """
@@ -112,19 +88,64 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
     # Combine ChEMBL and Drugbank tables to make drug target table
     drug_target_df = pd.concat([chembl_df[['name', 'drug_id']].copy(),
                                 drugbank_df[['name', 'drug_id']].copy()])
+    drug_target_df.rename(columns={'name': 'target_id'}, inplace=True)
     drug_target_df.drop_duplicates(inplace=True)
 
     # Join with target table
-    target_df = rename_and_key(target_df, 'target_id')
-    drug_target_df = join_tables(
-        dt.Frame(drug_target_df), target_df, 'target_id')
+    drug_target_df = dt.Frame(drug_target_df)
+    drug_target_df = join_tables(drug_target_df, target_df, 'target_id')
     # Drop rows with no target_id, drop duplicates
-    drug_target_df = drug_target_df[dt.f.target_id >= 1, [
-        'drug_id', 'target_id']]
+    drug_target_df = drug_target_df[dt.f.target_id >= 1, :]
     drug_target_df = drug_target_df[0, :, dt.by(drug_target_df.names)]
 
     drug_target_df = index_and_write(drug_target_df, 'drug_target', output_dir)
     return drug_target_df
+
+
+def build_gene_drug_table(chembl_df, drugbank_df, target_df, output_dir):
+    """
+    Build a join table...
+
+    @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
+    @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
+    @param target_df: [`datatable.Frame`] The target table, keyed
+    @param output_dir: [`string`] The file path with all final PharmacoDB tables
+    @return: [`datatable.Frame`] The gene_target table
+    """
+    # Get target-uniprot mappings from ChEMBL and Drugbank tables
+    gene_target_df = pd.concat([chembl_df[['name', 'uniprot_id']].copy(),
+                           drugbank_df[['name', 'uniprot_id']].copy()])
+    gene_target_df.rename(columns={'name': 'target_id'}, inplace=True)
+    gene_target_df.drop_duplicates(inplace=True)
+
+    # Retrieve Uniprot-ENSEMBL gene ID mappings
+    uniprot_ids = pd.Series(pd.unique(gene_target_df['uniprot_id']))
+    uniprot_ensembl_mappings = pd.concat(
+        parallelize(uniprot_ids, map_uniprot_to_ensembl, 1000))
+    uniprot_ensembl_mappings.drop_duplicates(inplace=True)
+
+    # Join gene_target table with gene table based on uniprot-ensembl mappings
+    gene_target_df = pd.merge(gene_target_df, uniprot_ensembl_mappings, on='uniprot_id')
+    gene_target_df.drop(columns=['uniprot_id'], inplace=True)
+
+    # Load and key the gene table from output_dir
+    gene_file = os.path.join(output_dir, 'gene.csv')
+    if not os.path.exists(gene_file):
+        raise FileNotFoundError(f"There is no gene file in {output_dir}!")
+    gene_df = dt.fread(gene_file, sep=",")
+    gene_df = rename_and_key(gene_df, 'gene_id')
+
+    # Join target table with gene table and target table
+    gene_target_df = dt.Frame(gene_target_df)
+    gene_target_df = join_tables(gene_target_df, gene_df, 'gene_id')
+    gene_target_df = join_tables(gene_target_df, target_df, 'target_id')
+
+    # Drop columns that didn't join and drop duplicates
+    gene_target_df = gene_target_df[(dt.f.target_id >= 1) & (dt.f.gene_id >= 1), :]
+    gene_target_df = gene_target_df[0, :, dt.by(gene_target_df.names)]
+
+    gene_target_df = index_and_write(gene_target_df, 'gene_target', output_dir)
+    return gene_target_df
 
 
 def map_uniprot_to_ensembl(uniprot_ids):
