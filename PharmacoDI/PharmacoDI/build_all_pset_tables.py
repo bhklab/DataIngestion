@@ -3,25 +3,24 @@ import glob
 import re
 import pandas as pd
 import numpy as np
-from PharmacoDI.build_primary_pset_tables import *
+from PharmacoDI.build_primary_pset_tables import build_primary_pset_tables, build_cell_df, build_drug_df, build_tissue_df
 from PharmacoDI.build_experiment_tables import build_experiment_tables, build_experiment_df
 from PharmacoDI.build_pset_gene_drugs import build_gene_drug_df
 from PharmacoDI.write_pset_table import write_pset_table
 
 
-# the directory where you want to store the tables (processed data)
-file_path = 'procdata'
-gene_sig_dir = os.path.join(
-    'data', 'rawdata', 'gene_signatures')  # the directory with data for gene_drugs
+procdata_dir = os.path.join('data', 'rawdata', 'gene_signatures')  
+gene_sig_dir = os.path.join('data', 'rawdata', 'gene_signatures')  
 
 
-def build_all_pset_tables(pset_dict, pset_name, file_path):
+def build_all_pset_tables(pset_dict, pset_name, procdata_dir, gene_sig_dir):
     """
     Build all tables for a dataset and write them to a directory of all processed data.
 
-    @param pset_dict: [`dict`] A nested dictionary containing all tables in the pset
-    @param pset_name: [`string`] The name of the dataset
-    @param file_path: [`string`] The file path to the directory containing processed data
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
+    @param pset_name: [`string`] The name of the PSet
+    @param procdata_dir: [`string`] The file path to the directory containing processed data
+    @param gene_sig_dir: [`string`] The file path to the directory containing gene_drugs data
     @return: [`None`]
     """
     pset_dfs = {}
@@ -53,7 +52,7 @@ def build_all_pset_tables(pset_dict, pset_name, file_path):
 
     # Write all tables to CSV files
     for df_name in pset_dfs.keys():
-        write_pset_table(pset_dfs[df_name], df_name, pset_name, file_path)
+        write_pset_table(pset_dfs[df_name], df_name, pset_name, procdata_dir)
 
 
 def build_dataset_cell_df(pset_dict, pset_name, cell_df=None):
@@ -61,9 +60,9 @@ def build_dataset_cell_df(pset_dict, pset_name, cell_df=None):
     Builds a join table summarizing the cell lines that are in this dataset.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @param pset_name: [`string`] The nameof the PSet
-    @param cell_df: [`DataFrame`] The cell table for this dataset
-    @return: [`DataFrame`] The join table with all cell lines in this dataset
+    @param pset_name: [`string`] The name of the PSet
+    @param cell_df: [`pd.DataFrame`] The cell table for this PSet
+    @return: [`pd.DataFrame`] The join table with all cell lines in this PSet
     """
     if not cell_df:
         cell_df = build_cell_df(pset_dict)
@@ -81,11 +80,11 @@ def build_mol_cell_df(pset_dict, pset_name, gene_drug_df, dataset_cell_df=None):
     type, in this dataset. (Only considers molecular data types for which there are sens stats?)
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
-    @param datasets_cells_df: [`DataFrame`] A table containing all the cells in this  
-        dataset and the datset name/id.
-    @param gene_drugs_df: [`DataFrame`] A table containing (..?)
-    @return: [`DataFrame`] The table with the number of profiles for each cell line, for each
-        molecular data type
+    @param gene_drug_df: [`pd.DataFrame`] The gene_drug table for this PSet
+    @param dataset_cell_df: [`pd.DataFrame`] A table containing all the cells in this  
+        PSet and the PSet name
+    @return: [`pd.DataFrame`] The table with the number of profiles for each cell line, 
+                                for each molecular data type
     """
     mol_cell_df = pd.DataFrame(
         columns=['cell_id', 'dataset_id', 'mDataType', 'num_prof'])
@@ -140,10 +139,10 @@ def build_dataset_stats_df(pset_dict, pset_name, pset_dfs=None):
     within the dataset.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
+    @param pset_name: [`string`] The name of the PSet
     @param pset_dfs: [`dict`] A dictionary of tables from the PSet, with table names 
                                 as the keys
-    @param pset_name: [`string`] The name of the PSet
-    @return: [`DataFrame`] A one-row table with the summary stats for this PSet
+    @return: [`pd.DataFrame`] A one-row table with the summary stats for this PSet
     """
     if not pset_dfs:
         pset_dfs = {}
