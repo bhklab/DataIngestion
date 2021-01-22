@@ -4,7 +4,7 @@ import glob
 import numpy as np
 import pandas as pd
 from datatable import Frame
-from scripts.join_pset_tables import index_and_write
+from PharmacoDI.combine_pset_tables import write_table
 
 output_dir = os.path.join('data', 'demo')
 metadata_dir = os.path.join('data', 'metadata')
@@ -12,8 +12,6 @@ metadata_dir = os.path.join('data', 'metadata')
 cell_file = "cell_annotation_all.csv"
 tissue_file = "cell_annotation_all.csv"
 drug_file = "drugs_with_ids.csv"
-
-# TODO: currently excluding cell synonyms that dont map to a cell
 
 def get_metadata(file_name, metadata_dir):
     # Find correct metadata annotations CSV file
@@ -48,7 +46,7 @@ def build_cell_synonym_df(cell_file, metadata_dir, output_dir):
 
     # Convert to datatable.Frame for fast write to disk
     df = Frame(cell_synonym_df)
-    df = index_and_write(df, 'cell_synonym', output_dir)
+    df = write_table(df, 'cell_synonym', output_dir)
     return df
     
 
@@ -71,7 +69,7 @@ def build_tissue_synonym_df(tissue_file, metadata_dir, output_dir):
 
     # Convert to datatable.Frame for fast write to disk
     df = Frame(tissue_synonym_df)
-    df = index_and_write(df, 'tissue_synonym', output_dir)
+    df = write_table(df, 'tissue_synonym', output_dir)
     return df
 
 
@@ -95,7 +93,7 @@ def build_drug_synonym_df(drug_file, metadata_dir, output_dir):
 
     # Convert to datatable.Frame for fast write to disk
     df = Frame(drug_synonym_df)
-    df = index_and_write(df, 'drug_synonym', output_dir)
+    df = write_table(df, 'drug_synonym', output_dir)
     return df
 
 

@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 from multiprocessing import Pool, cpu_count
 import datatable as dt
-from PharmacoDI.combine_pset_tables import index_and_write, rename_and_key, join_tables
+from PharmacoDI.combine_pset_tables import write_table, rename_and_key, join_tables
 from PharmacoDI.get_chembl_drug_targets import parallelize
 
 
@@ -98,7 +98,8 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
     drug_target_df = drug_target_df[dt.f.target_id >= 1, :]
     drug_target_df = drug_target_df[0, :, dt.by(drug_target_df.names)]
 
-    drug_target_df = index_and_write(drug_target_df, 'drug_target', output_dir)
+    drug_target_df = write_table(
+        drug_target_df, 'drug_target', output_dir, add_index=False)
     return drug_target_df
 
 
@@ -114,7 +115,7 @@ def build_gene_drug_table(chembl_df, drugbank_df, target_df, output_dir):
     """
     # Get target-uniprot mappings from ChEMBL and Drugbank tables
     gene_target_df = pd.concat([chembl_df[['name', 'uniprot_id']].copy(),
-                           drugbank_df[['name', 'uniprot_id']].copy()])
+                                drugbank_df[['name', 'uniprot_id']].copy()])
     gene_target_df.rename(columns={'name': 'target_id'}, inplace=True)
     gene_target_df.drop_duplicates(inplace=True)
 
@@ -125,7 +126,8 @@ def build_gene_drug_table(chembl_df, drugbank_df, target_df, output_dir):
     uniprot_ensembl_mappings.drop_duplicates(inplace=True)
 
     # Join gene_target table with gene table based on uniprot-ensembl mappings
-    gene_target_df = pd.merge(gene_target_df, uniprot_ensembl_mappings, on='uniprot_id')
+    gene_target_df = pd.merge(
+        gene_target_df, uniprot_ensembl_mappings, on='uniprot_id')
     gene_target_df.drop(columns=['uniprot_id'], inplace=True)
 
     # Load and key the gene table from output_dir
@@ -141,10 +143,12 @@ def build_gene_drug_table(chembl_df, drugbank_df, target_df, output_dir):
     gene_target_df = join_tables(gene_target_df, target_df, 'target_id')
 
     # Drop columns that didn't join and drop duplicates
-    gene_target_df = gene_target_df[(dt.f.target_id >= 1) & (dt.f.gene_id >= 1), :]
+    gene_target_df = gene_target_df[(
+        dt.f.target_id >= 1) & (dt.f.gene_id >= 1), :]
     gene_target_df = gene_target_df[0, :, dt.by(gene_target_df.names)]
 
-    gene_target_df = index_and_write(gene_target_df, 'gene_target', output_dir)
+    gene_target_df = write_table(
+        gene_target_df, 'gene_target', output_dir, add_index=False)
     return gene_target_df
 
 

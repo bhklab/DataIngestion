@@ -3,7 +3,7 @@ import os
 from multiprocessing import Pool, cpu_count
 from collections import defaultdict
 import datatable as dt
-from scripts.join_pset_tables import join_tables, index_and_write
+from PharmacoDI.combine_pset_tables import join_tables, write_table
 
 if 'PharmacoDI' not in os.getcwd():
     os.chdir('PharmacoDI')
@@ -72,5 +72,25 @@ def build_cellosaurus_df(cellosaurus_path, output_dir, cell_df):
     df = df[dt.f.cell_id >= 1, :]
     df = df[:, ['cell_id', 'identifier', 'accession', 'as', 'sy',
                 'dr', 'rx', 'ww', 'cc', 'st', 'di', 'ox', 'hi', 'oi', 'sx', 'ca']]
-    df = index_and_write(df, 'cellosaurus', output_dir)
+    df = write_table(df, 'cellosaurus', output_dir)
     return df
+
+
+#TODO: These don't map:
+"""
+>>> cell_df[~cell_df['id'].isin(ids)]
+        id       name  tissue_id
+141    142      BT179         19
+221    222   COLO_005         19
+222    223   COLO_011         19
+223    224   COLO_021         19
+481    482     HCC812          7
+742    743       KRIJ         19
+960    961  NCE G-28T          8
+1183  1184   OESO_009         19
+1184  1185   OESO_040         19
+1237  1238    PD1503a         19
+"""
+
+df = pd.read_excel(os.path.join('data', 'metadata', 'cellosaurus_names.xlsx'), engine='openpyxl')
+df = df[['cellosaurus_ac', 'pharmacodb_id']]

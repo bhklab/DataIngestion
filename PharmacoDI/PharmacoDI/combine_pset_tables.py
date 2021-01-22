@@ -62,10 +62,11 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
     join_dfs['cell'] = rename_and_key(cell_df, 'cell_id')
 
     # Build annotation tables
+    # TODO; remove pk (id column)
     load_join_write('drug_annotation', data_dir,
-                    output_dir, ['drug'], join_dfs)
+                    output_dir, ['drug'], join_dfs, add_index=False)
     load_join_write('gene_annotation', data_dir,
-                    output_dir, ['gene'], join_dfs)
+                    output_dir, ['gene'], join_dfs, add_index=False)
 
     # Build all other secondary tables
     load_join_write('dataset_cell', data_dir, output_dir,
@@ -111,12 +112,12 @@ def combine_experiment_tables(join_dfs, data_dir, output_dir):
         for fk in ['dataset', 'experiment']:
             df = join_tables(df, join_dfs[fk], fk+'_id')
         del df[:, 'dataset_id']
-        index_and_write(df, df_name, output_dir)
+        write_table(df, df_name, output_dir, add_index=(df_name=='dose_response'))
 
     return join_dfs
 
 
-def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None):
+def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None, add_index=True):
     df = load_table(name, data_dir)
     if foreign_keys and not join_tables:
         print(f'ERROR: The {name} table has foreign keys {foreign_keys}'
@@ -126,8 +127,7 @@ def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None):
     for fk in foreign_keys:
         df = join_tables(df, join_dfs[fk], fk+'_id')
 
-    df = index_and_write(df, name, output_dir)
-
+    df = write_table(df, name, output_dir, add_index)
     return df
 
 
@@ -193,7 +193,7 @@ def join_tables(df1, df2, join_col):
     return df
 
 
-def index_and_write(df, name, output_dir):
+def write_table(df, name, output_dir, add_index=True):
     """
     Add a primary key to df ('id' column) and write it to output_dir
     as a .csv file.
@@ -203,8 +203,9 @@ def index_and_write(df, name, output_dir):
     @param output_dir: [`string`] The directory to write the table to
     @return: [`datatable.Frame`] The indexed PharmacoDB table
     """
-    # Index datatable
-    df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
+    if add_index:
+        # Index datatable
+        df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
     # Write to .csv
     df.to_csv(os.path.join(output_dir, f'{name}.csv'))
     return df
