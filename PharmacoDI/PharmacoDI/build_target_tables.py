@@ -13,9 +13,6 @@ drugbank_file = os.path.join(
 chembl_file = os.path.join('data', 'metadata', 'chembl_drug_targets.csv')
 output_dir = os.path.join("data", "demo")
 
-# TODO: need error handling for missing directories
-# TODO: need to abstract some functions
-
 
 def build_target_tables(drugbank_file, chembl_file, output_dir):
     """
@@ -28,11 +25,15 @@ def build_target_tables(drugbank_file, chembl_file, output_dir):
     @return: None
     """
     # Get Drugbank data
+    if not os.path.exists(drugbank_file):
+        raise FileNotFoundError(f"The file {drugbank_file} doesn't exist!")
     drugbank_df = pd.read_csv(drugbank_file)
     drugbank_df.rename(columns={'polypeptide.external.identifiers.UniProtKB': 'uniprot_id',
                                 'drugName': 'drug_name'}, inplace=True)
 
     # Get ChEMBL data
+    if not os.path.exists(chembl_file):
+        raise FileNotFoundError(f"The file {chembl_file} doesn't exist!")
     chembl_df = pd.read_csv(chembl_file, index_col=0)
     chembl_df.rename(columns={'pref_name': 'name',
                               'accession': 'uniprot_id'}, inplace=True)
@@ -49,7 +50,7 @@ def build_target_table(chembl_df, drugbank_df, output_dir):
     @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
     @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
     @param output_dir: [`string`] The file path to write the final target table
-    @return: [`pd.DataFrame`] The target table
+    @return: [`datatable.Frame`] The target table
     """
     # Combine ChEMBL and Drugbank tables to make target table
     target_df = pd.concat([chembl_df[['name', 'uniprot_id']].copy(),
@@ -70,7 +71,7 @@ def build_target_table(chembl_df, drugbank_df, output_dir):
     # Load gene table from output_dir
     gene_file = os.path.join(output_dir, 'gene.csv')
     if not os.path.exists(gene_file):
-        raise FileNotFoundError(f"ERROR: There is no gene file in {output_dir}!")
+        raise FileNotFoundError(f"There is no gene file in {output_dir}!")
     gene_df = pd.read_csv(gene_file)
     gene_df.rename(columns={'name': 'gene_id'}, inplace=True)
 
@@ -83,7 +84,7 @@ def build_target_table(chembl_df, drugbank_df, output_dir):
     target_df.drop_duplicates(inplace=True)
 
     target_df = index_and_write(dt.Frame(target_df), 'target', output_dir)
-    return target_df # convert to pandas
+    return target_df  # convert to pandas
 
 
 def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
@@ -93,16 +94,17 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
 
     @param chembl_df: [`pd.DataFrame`] The ChEMBL drug target table
     @param drugbank_df: [`pd.DataFrame`] The DrugBank drug target table
-    @param target_df: [`pd.DataFrame`] The target table
+    @param target_df: [`datatable.Frame`] The target table
     @param output_dir: [`string`] The file path with all final PharmacoDB tables
-    @return: [`pd.DataFrame`] The drug target table
+    @return: [`datatable.Frame`] The drug target table
     """
     # Load drug synonym table from output_dir
     drug_synonym_file = os.path.join(output_dir, 'drug_synonym.csv')
     if not os.path.exists(drug_synonym_file):
-        raise FileNotFoundError(f"ERROR: There is no drug synonym file in {output_dir}!")
+        raise FileNotFoundError(
+            f"There is no drug synonym file in {output_dir}!")
     drug_syn_df = pd.read_csv(drug_synonym_file, dtype={'drug_id': 'int32'})
-    
+
     # Join drugbank df with drug table (TODO: are we really using drug name to map?)
     drugbank_df = pd.merge(drugbank_df, drug_syn_df, on='drug_name')
     # TODO: from 7521 down to only 122 rows :/
@@ -114,9 +116,11 @@ def build_drug_target_table(chembl_df, drugbank_df, target_df, output_dir):
 
     # Join with target table
     target_df = rename_and_key(target_df, 'target_id')
-    drug_target_df = join_tables(dt.Frame(drug_target_df), target_df, 'target_id')
+    drug_target_df = join_tables(
+        dt.Frame(drug_target_df), target_df, 'target_id')
     # Drop rows with no target_id, drop duplicates
-    drug_target_df = drug_target_df[dt.f.target_id >= 1, ['drug_id', 'target_id']]
+    drug_target_df = drug_target_df[dt.f.target_id >= 1, [
+        'drug_id', 'target_id']]
     drug_target_df = drug_target_df[0, :, dt.by(drug_target_df.names)]
 
     drug_target_df = index_and_write(drug_target_df, 'drug_target', output_dir)
@@ -156,4 +160,3 @@ def map_uniprot_to_ensembl(uniprot_ids):
     gene_id_df.rename(columns={0: 'uniprot_id', 1: 'gene_id'}, inplace=True)
 
     return gene_id_df
-
