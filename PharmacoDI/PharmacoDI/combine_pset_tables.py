@@ -5,16 +5,14 @@ import numpy as np
 import pandas as pd
 from datatable import dt, fread, iread, join, by, rbind, cbind, f
 
-data_dir = os.path.join('data', 'procdata')
-output_dir = os.path.join('data', 'demo')
 
 # TODO: change printed errors to actual errors
 
 
 def combine_all_pset_tables(data_dir, output_dir):
     join_dfs = combine_primary_tables(data_dir, output_dir)
-    join_dfs = combine_secondary_tables(join_dfs, data_dir, output_dir)
-    join_dfs = combine_experiment_tables(join_dfs, data_dir, output_dir)
+    join_dfs = combine_secondary_tables(data_dir, output_dir, join_dfs)
+    join_dfs = combine_experiment_tables(data_dir, output_dir, join_dfs)
     return join_dfs
 
 
@@ -62,7 +60,6 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
     join_dfs['cell'] = rename_and_key(cell_df, 'cell_id')
 
     # Build annotation tables
-    # TODO; remove pk (id column)
     load_join_write('drug_annotation', data_dir,
                     output_dir, ['drug'], join_dfs, add_index=False)
     load_join_write('gene_annotation', data_dir,
@@ -82,7 +79,7 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
     return join_dfs
 
 
-def combine_experiment_tables(join_dfs, data_dir, output_dir):
+def combine_experiment_tables(data_dir, output_dir, join_dfs):
     """
     Load and process experiment table, then use it to build the dose response
     and profile tables. Drop the 'name' column from the experiment table before
