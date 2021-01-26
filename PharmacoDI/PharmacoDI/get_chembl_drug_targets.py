@@ -4,36 +4,27 @@ import numpy as np
 import pandas as pd
 import os
 
-# Files
-drug_annotation_dir = os.path.join('data', 'latest', 'drug_annotation')
-target_file = os.path.join('data', 'metadata', 'chembl_targets.csv')
-drug_target_file = os.path.join('data', 'metadata', 'chembl_drug_targets.csv')
 
 # Connections to ChEMBL web client
 molecule = new_client.molecule
 activity = new_client.activity
 
 
-def get_chembl_drug_target_mappings(drug_annotation_dir, target_file, drug_target_file):
+def get_chembl_drug_target_mappings(drug_annotation_file, target_file, drug_target_file):
     """
     Get drug target mappings for all drugs in the drug_annotation files (using standard
     inchi key to map between the file and ChEMBL) and all targets in the target file.
     Write to drug_target file and return the resulting DataFrame.
 
-    :drug_annotation_dir: the directory where all drug_annotation csv files are held
+    :drug_annotation_file: the full file path to the drug_annotation table
     :target_file: the full file path to the target csv file
     :drug_target_file: the full file path where the drug target file will be written
     :return: the ChEMBL drug target DataFrame
     """
-
     # Load drug annotations table
-    if not os.path.exists(drug_annotation_dir):
-        print(
-            f"ERROR: the drug annotation directory {drug_annotation_dir} doesn't exist!")
-    drug_df = pd.DataFrame()
-    for f in os.listdir(drug_annotation_dir):
-        drug_df = drug_df.append(pd.read_csv(
-            os.path.join(drug_annotation_dir, f)))
+    if not os.path.exists(drug_annotation_file):
+        raise FileNotFoundError(f"The file {drug_annotation_file} does not exist!")
+    drug_df = pd.read_csv(drug_annotation_file)
 
     # Get inchikeys of all drugs (not smiles bc capitalization in ChEMBL is inconsistent..)
     inchikeys = list(pd.unique(drug_df['inchikey'].dropna()))
