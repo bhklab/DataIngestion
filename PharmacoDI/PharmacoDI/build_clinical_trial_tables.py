@@ -124,7 +124,7 @@ def get_clinical_trials_for_drug(drug_name, min_rank, max_rank):
     # Check that request was successful
     if r.status_code != 200:
         print(f'API call for clinical trials related to {drug_name}',
-              ' failed for the following reason:\n', r.text)
+              ' failed for the following reason:\n', r.json()['Error'])
         return studies, 0, 0
 
     response = r.json()['StudyFieldsResponse']
