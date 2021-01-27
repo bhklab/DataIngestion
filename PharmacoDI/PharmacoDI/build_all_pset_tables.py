@@ -31,8 +31,10 @@ def build_all_pset_tables(pset_dict, pset_name, procdata_dir, gene_sig_dir):
 
     # Build experiment tables
     print('Building experiment tables...')
-    pset_dfs = pset_dfs | build_experiment_tables(
-        pset_dict, pset_name, pset_dfs['cell'])
+    ## FIX: Modified to use pre-3.9 syntax to ensure backwards compatibility
+    ## NOTE:: ** is the spread operator for dictionaries
+    pset_dfs = {**pset_dfs, **build_experiment_tables(
+        pset_dict, pset_name, pset_dfs['cell'])}
 
     # Build gene drugs table
     print('Building gene drug table...')
@@ -64,7 +66,7 @@ def build_dataset_cell_df(pset_dict, pset_name, cell_df=None):
     @param cell_df: [`pd.DataFrame`] The cell table for this PSet
     @return: [`pd.DataFrame`] The join table with all cell lines in this PSet
     """
-    if not cell_df:
+    if cell_df is None:
         cell_df = build_cell_df(pset_dict)
 
     dataset_cell_df = pd.DataFrame(
@@ -96,7 +98,7 @@ def build_mol_cell_df(pset_dict, pset_name, gene_drug_df, dataset_cell_df=None):
     else:
         profiles_dict = None
 
-    if not dataset_cell_df:
+    if dataset_cell_df is None:
         dataset_cell_df = build_dataset_cell_df(
             pset_dict, pset_name, cell_df=None)
 
@@ -144,7 +146,7 @@ def build_dataset_stats_df(pset_dict, pset_name, pset_dfs=None):
                                 as the keys
     @return: [`pd.DataFrame`] A one-row table with the summary stats for this PSet
     """
-    if not pset_dfs:
+    if pset_dfs is None:
         pset_dfs = {}
     if 'tissue' not in pset_dfs:
         pset_dfs['tissue'] = build_tissue_df(pset_dict)
