@@ -170,8 +170,7 @@ def map_uniprot_to_ensembl(uniprot_ids):
     r = requests.get('https://www.uniprot.org/uploadlists/', params=params)
 
     # Check that request was successful
-    if r.status_code != 200:
-        return f'ERROR: {r.status_code}'
+    r.raise_for_status()
 
     # Split text into rows (one row per ID) and build df
     # Exclude first row (header)
