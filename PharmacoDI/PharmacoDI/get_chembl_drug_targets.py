@@ -5,11 +5,6 @@ import pandas as pd
 import os
 
 
-# Connections to ChEMBL web client
-molecule = new_client.molecule
-activity = new_client.activity
-
-
 def get_chembl_drug_target_mappings(drug_annotation_file, target_file, drug_target_file):
     """
     Get drug target mappings for all drugs in the drug_annotation files (using standard
@@ -65,6 +60,7 @@ def get_chembl_drug_target_mappings(drug_annotation_file, target_file, drug_targ
     return drug_target_df
 
 
+# TODO: add progress bar to parallelize
 def parallelize(queries, operation, chunksize, *args):
     """
     Splits queries into chunks of chunksize and then uses a pool to 
@@ -99,6 +95,8 @@ def get_drugs_by_inchikey(inchikeys):
     :return: A dataframe of drugs (including ChEMBL ID and inchikey)
     """
     chembl_drug_df = pd.DataFrame(columns=['inchikey', 'molecule_chembl_id'])
+    # Initiate connection to ChEMBL molecule table
+    molecule = new_client.molecule
     molecules = molecule.filter(molecule_structures__standard_inchi_key__in=inchikeys).only(
         ['molecule_chembl_id', 'molecule_structures'])
     for mol in molecules:
@@ -118,6 +116,8 @@ def get_drug_target_mappings(molecule_ids, target_ids):
     :target_ids: A list of ChEMBL target IDs
     :return: A DataFrame of drug target mappings (molecule ChEMBL ID and target ChEMBL ID)
     """
+    # Initiate connection to ChEMBL activity table
+    activity = new_client.activity
     results = activity.filter(molecule_chembl_id__in=molecule_ids, target_chembl_id__in=target_ids,
                               pchembl_value__isnull=False).only(['molecule_chembl_id', 'target_chembl_id'])
     mappings = list(results)
