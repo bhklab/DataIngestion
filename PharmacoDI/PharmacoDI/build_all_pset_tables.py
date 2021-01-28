@@ -59,7 +59,7 @@ def build_all_pset_tables(pset_dict, pset_name, procdata_dir, gene_sig_dir):
 
 def build_dataset_cell_df(pset_dict, pset_name, cell_df=None):
     """
-    Builds a join table summarizing the cell lines that are in this dataset.
+    Builds a join table summarizing the cell lines in this PSet.
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @param pset_name: [`string`] The name of the PSet
@@ -72,8 +72,43 @@ def build_dataset_cell_df(pset_dict, pset_name, cell_df=None):
     dataset_cell_df = pd.DataFrame(
         {'dataset_id': pset_name, 'cell_id': cell_df['name']})
 
-    return dataset_cell_df[['dataset_id', 'cell_id']]
+    return dataset_cell_df
 
+
+def build_dataset_tissue_df(pset_dict, pset_name, tissue_df=None):
+    """
+    Builds a join table summarizing the tissues in this PSet.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
+    @param pset_name: [`string`] The name of the PSet
+    @param tissue_df: [`pd.DataFrame`] The tissue table for this PSet
+    @return: [`pd.DataFrame`] The join table with all tissues in this PSet
+    """
+    if tissue_df is None:
+        tissue_df = build_tissue_df(pset_dict)
+
+    dataset_tissue_df = pd.DataFrame(
+        {'dataset_id': pset_name, 'tissue_id': tissue_df['name']})
+
+    return dataset_tissue_df
+
+
+def build_dataset_compound_df(pset_dict, pset_name, compound_df=None):
+    """
+    Builds a join table summarizing the drugs/compounds in this PSet.
+
+    @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
+    @param pset_name: [`string`] The name of the PSet
+    @param compound_df: [`pd.DataFrame`] The drug/compound table for this PSet
+    @return: [`pd.DataFrame`] The join table with all compounds/drugs in this PSet
+    """
+    if compound_df is None:
+        compound_df = build_drug_df(pset_dict)
+
+    dataset_compound_df = pd.DataFrame(
+        {'dataset_id': pset_name, 'compound_id': compound_df['name']})
+
+    return dataset_compound_df
 
 
 def build_mol_cell_df(pset_dict, pset_name, gene_drug_df, dataset_cell_df=None):
