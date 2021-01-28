@@ -59,11 +59,17 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
         'cell', data_dir, output_dir, ['tissue'], join_dfs)
     join_dfs['cell'] = rename_and_key(cell_df, 'cell_id')
 
-    # Build annotation tables
+    # Build drug annotation table
     load_join_write('drug_annotation', data_dir,
                     output_dir, ['drug'], join_dfs, add_index=False)
-    load_join_write('gene_annotation', data_dir,
-                    output_dir, ['gene'], join_dfs, add_index=False)
+    # Build gene annotation table
+    gene_annot_df = load_table('gene_annotation', data_dir)
+    # Remove any rows with no actual annotations (no symbol)
+    gene_annot_df = gene_annot_df[dt.f.symbol > "", :]
+    # Join the other way so that genes that got cut out are included back in
+    gene_annot_df.key = 'gene_id'
+    gene_annot_df = join_tables(join_dfs['gene'], gene_annot_df, 'gene_id')
+    write_table(gene_annot_df, 'gene_annotation', output_dir, add_index=False)
 
     # Build all other secondary tables
     load_join_write('dataset_cell', data_dir, output_dir,
@@ -143,6 +149,8 @@ def load_table(name, data_dir):
         data_dir + r'/(\w+)/\1_' + name + '.csv$', file_name)]
     # Read and concatenate tables
     df = rbind(*iread(files, sep=','))
+    # Replace any empty strings with None/NA
+    df.replace("", None)
     # Drop duplicates
     # (groups by all columns and selects only the first row from each group)
     df = df[0, :, by(df.names)]
@@ -204,5 +212,5 @@ def write_table(df, name, output_dir, add_index=True):
         # Index datatable
         df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
     # Write to .csv
-    df.to_csv(os.path.join(output_dir, f'{name}.csv'))
+    df.to_csv(os.path.join(output_dir, f'{name}.csv'), quoting="none")
     return df
