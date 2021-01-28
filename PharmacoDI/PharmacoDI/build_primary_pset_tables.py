@@ -11,7 +11,7 @@ def build_primary_pset_tables(pset_dict, pset_name):
 
     @param pset_dict: [`dict`] A nested dictionary containing all tables in the PSet
     @param pset_name: [`string`] The name of the PSet
-    @return: [`dict`] A dictionary of primary tables
+    @return: [`dict`] A dictionary of primary tables, with table names as keys
     """
     pset_dfs = {}
     pset_dfs['dataset'] = pd.Series(pset_name, name='name')
