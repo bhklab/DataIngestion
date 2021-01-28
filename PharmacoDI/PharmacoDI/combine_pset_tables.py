@@ -91,7 +91,7 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
     dataset_compound_df = join_tables(
         dataset_compound_df, compound_df, 'compound_id')
     dataset_compound_df = write_table(
-        dataset_compound_df, 'dataset_comopund', output_dir, add_index=False)
+        dataset_compound_df, 'dataset_compound', output_dir, add_index=False)
 
     # Build all other secondary tables
     load_join_write('mol_cell', data_dir, output_dir,
