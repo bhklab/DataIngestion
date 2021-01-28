@@ -7,6 +7,14 @@ from datatable import dt, fread, iread, join, by, rbind, cbind, f
 
 
 def combine_all_pset_tables(data_dir, output_dir):
+    """
+    Combine all PSet tables into the final PharmacoDB tables.
+
+    @param data_dir: [`string`] The file path to read the PSet tables
+    @param output_dir: [`string`] The file path to write the final tables
+    @return: [`dict(string: datatable.Frame)`] A dictionary of all some of the
+        final tables, with names as keys, to be used for later joins
+    """
     join_dfs = combine_primary_tables(data_dir, output_dir)
     join_dfs = combine_secondary_tables(data_dir, output_dir, join_dfs)
     join_dfs = combine_experiment_tables(data_dir, output_dir, join_dfs)
@@ -119,6 +127,22 @@ def combine_experiment_tables(data_dir, output_dir, join_dfs):
 
 
 def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None, add_index=True):
+    """
+    Given the name of a table, load all PSet tables of that name from data_dir,
+    join them to any foreign key tables (specified by foreign_keys), and write
+    the final combined and joined table to output_dir as a CSV.
+
+    @param name: [`string`] The name of the table
+    @param data_dir: [`string`] File path to the directory with all PSet tables
+    @param output_dir: [`string`] The file path to the final tables
+    @param foreign_keys: [`list(string)`] An optional list of tables that this table
+                                            needs to be joined with
+    @param join_dfs: [`dict(string: datatable.Frame)`] An optional dictionary of join
+        tables (for building out foreign keys); keys are table names
+    @param add_index: [`bool`] Indicates whether or not to add a primary key (1-nrows)
+        when writing the final table to a .csv
+    @return: [`datatable.Frame`] The final combined and joined table
+    """
     df = load_table(name, data_dir)
     if foreign_keys and join_dfs is None:
         raise TypeError(f'The {name} table has foreign keys {foreign_keys} '
@@ -133,10 +157,10 @@ def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None, 
 
 def load_table(name, data_dir):
     """
-    Load all PSet tables with name into a datatable and reindex the rows.
+    Load all PSet tables with name into a datatable, dropping any duplicate rows.
 
-    @name: [`string`] The name of the table
-    @data_dir: [`string`] File path to the directory with all PSet tables
+    @param name: [`string`] The name of the table
+    @param data_dir: [`string`] File path to the directory with all PSet tables
     @return: [`datatable.Frame`] A datatable containing all rows from all PSets
     """
     # Get all files
@@ -160,9 +184,11 @@ def rename_and_key(df, join_col, og_col='name'):
     Prepare df to be joined with other tables by renaming the column
     on which it will be joined and by keying it.
 
-    @join_col: [`string`] The name of the join column in other tables
+    @param df: [`datatable.Frame`] The table to be keyed.
+    @param join_col: [`string`] The name of the join column in other tables
                             (ex. 'tissue_id', 'cell_id', etc.)
-    @og_col: [`string`] The name of the join column in the join table
+    @param og_col: [`string`] The name of the join column in the join table
+    @return: [`datatable.Frame`] The keyed and renamed table
     """
     # Rename primary key to match foreign key name (necessary for joins)
     df.names = {og_col: join_col}
@@ -175,13 +201,13 @@ def rename_and_key(df, join_col, og_col='name'):
 
 def join_tables(df1, df2, join_col):
     """
-    Join df2 and df1 based on join_col.
+    Join df2 and df1 based on join_col (left outer join by default).
 
     @param df1: [`datatable.Frame`] The datatable with the foreign key
     @param df2: [`datatable.Frame`] The join table (ex. tissue datatable)
     @param join_col: [`string`] The name of the columns on which the tables
                             will be joined (ex. 'tissue_id')
-    @return
+    @return [`datatable.Frame`] The new, joined table
     """
     if (join_col not in df1.names) or (join_col not in df2.names):
         print(f'{join_col} is missing from one or both of the datatables passed!',
