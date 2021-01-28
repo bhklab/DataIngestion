@@ -45,7 +45,7 @@ def get_chembl_drug_target_mappings(drug_annotation_file, target_file, drug_targ
 
     # Get mappings between drugs (molecule_ids) and targets (target_ids)
     # TODO: I'm not sure if parallelization actually helps for this API call
-    print('Getting drug target mappings from ChEMBL...')
+    print('Getting drug-target mappings from ChEMBL...')
     drug_target_mappings = parallelize(
         molecule_ids, get_drug_target_mappings, 50, target_ids)
     drug_target_df = pd.concat(drug_target_mappings).drop_duplicates()
