@@ -23,6 +23,7 @@ def build_clinical_trial_tables(output_dir):
     drug_df = pd.read_csv(drug_file)[['drug_id', 'drug_name']]
 
     # Query clinicaltrials.gov API to get clinical trials by drug name
+    print('Getting clinical trials from clinicaltrials.gov...')
     all_studies = parallelize(list(drug_df['drug_name']),
                               get_clinical_trials_by_drug_names, 50)
     studies_df = pd.concat(all_studies)
