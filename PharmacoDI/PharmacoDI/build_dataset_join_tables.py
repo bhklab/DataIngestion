@@ -59,7 +59,7 @@ def build_dataset_tissue_df(pset_dict, pset_name, tissue_df=None):
         tissue_df = build_tissue_df(pset_dict)
 
     dataset_tissue_df = pd.DataFrame(
-        {'dataset_id': pset_name, 'tissue_id': tissue_df['name']})
+        {'dataset_id': pset_name, 'tissue_id': tissue_df})
 
     return dataset_tissue_df
 
@@ -77,6 +77,6 @@ def build_dataset_compound_df(pset_dict, pset_name, compound_df=None):
         compound_df = build_drug_df(pset_dict)
 
     dataset_compound_df = pd.DataFrame(
-        {'dataset_id': pset_name, 'compound_id': compound_df['name']})
+        {'dataset_id': pset_name, 'compound_id': compound_df})
 
     return dataset_compound_df
