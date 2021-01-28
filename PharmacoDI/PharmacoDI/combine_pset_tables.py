@@ -6,9 +6,6 @@ import pandas as pd
 from datatable import dt, fread, iread, join, by, rbind, cbind, f
 
 
-# TODO: change printed errors to actual errors
-
-
 def combine_all_pset_tables(data_dir, output_dir):
     join_dfs = combine_primary_tables(data_dir, output_dir)
     join_dfs = combine_secondary_tables(data_dir, output_dir, join_dfs)
@@ -115,17 +112,17 @@ def combine_experiment_tables(data_dir, output_dir, join_dfs):
         for fk in ['dataset', 'experiment']:
             df = join_tables(df, join_dfs[fk], fk+'_id')
         del df[:, 'dataset_id']
-        write_table(df, df_name, output_dir, add_index=(df_name=='dose_response'))
+        write_table(df, df_name, output_dir,
+                    add_index=(df_name == 'dose_response'))
 
     return join_dfs
 
 
 def load_join_write(name, data_dir, output_dir, foreign_keys=[], join_dfs=None, add_index=True):
     df = load_table(name, data_dir)
-    if foreign_keys and not join_tables:
-        print(f'ERROR: The {name} table has foreign keys {foreign_keys}'
-              'but you have not passed any join_tables.')
-        return None
+    if foreign_keys and join_dfs is None:
+        raise TypeError(f'The {name} table has foreign keys {foreign_keys} '
+                        'but you have not passed any join tables.')
 
     for fk in foreign_keys:
         df = join_tables(df, join_dfs[fk], fk+'_id')
