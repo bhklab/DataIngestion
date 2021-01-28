@@ -15,6 +15,7 @@ def combine_all_pset_tables(data_dir, output_dir):
     @return: [`dict(string: datatable.Frame)`] A dictionary of all some of the
         final tables, with names as keys, to be used for later joins
     """
+    print("Combining all PSet tables...")
     join_dfs = combine_primary_tables(data_dir, output_dir)
     join_dfs = combine_secondary_tables(data_dir, output_dir, join_dfs)
     join_dfs = combine_experiment_tables(data_dir, output_dir, join_dfs)
@@ -76,9 +77,23 @@ def combine_secondary_tables(data_dir, output_dir, join_dfs):
     gene_annot_df = join_tables(join_dfs['gene'], gene_annot_df, 'gene_id')
     write_table(gene_annot_df, 'gene_annotation', output_dir, add_index=False)
 
-    # Build all other secondary tables
+    # Build join tables
     load_join_write('dataset_cell', data_dir, output_dir,
-                    ['dataset', 'cell'], join_dfs)
+                    ['dataset', 'cell'], join_dfs, add_index=False)
+    load_join_write('dataset_tissue', data_dir, output_dir,
+                    ['dataset', 'tissue'], join_dfs, add_index=False)
+    # TODO: temporary workaround for dataset_compound until we standardize drug -> compound
+    dataset_compound_df = load_table('dataset_compound', data_dir)
+    dataset_compound_df = join_tables(
+        dataset_compound_df, join_dfs['dataset'], 'dataset_id')
+    compound_df = join_dfs['drug'].copy()
+    compound_df.names = {'drug_id': 'compound_id'}
+    dataset_compound_df = join_tables(
+        dataset_compound_df, compound_df, 'compound_id')
+    dataset_compound_df = write_table(
+        dataset_compound_df, 'dataset_comopund', output_dir, add_index=False)
+
+    # Build all other secondary tables
     load_join_write('mol_cell', data_dir, output_dir,
                     ['cell', 'dataset'], join_dfs)
     # mol_cells has Kallisto. not sure why. from CTRPv2 (TODO)
@@ -231,9 +246,10 @@ def write_table(df, name, output_dir, add_index=True):
     @param output_dir: [`string`] The directory to write the table to
     @return: [`datatable.Frame`] The indexed PharmacoDB table
     """
+    print(f'Writing {name} table to {output_dir}...')
     if add_index:
         # Index datatable
         df = cbind(dt.Frame(id=np.arange(df.nrows) + 1), df)
     # Write to .csv
-    df.to_csv(os.path.join(output_dir, f'{name}.csv'), quoting="none")
+    df.to_csv(os.path.join(output_dir, f'{name}.csv'))
     return df
