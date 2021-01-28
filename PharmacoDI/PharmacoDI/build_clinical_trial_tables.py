@@ -38,19 +38,13 @@ def build_clinical_trial_tables(output_dir):
     studies_df.rename(columns={'OrgStudyId': 'clinical_trial_id',
                                'NCTId': 'nct',
                                'SeeAlsoLinkURL': 'link',
-                               'OverallStatus': 'recruiting'}, inplace=True)
+                               'OverallStatus': 'status'}, inplace=True)
 
     # Build clinical trials table
     clin_trial_df = studies_df[['clinical_trial_id',
-                                'nct', 'link', 'recruiting']].copy()
+                                'nct', 'link', 'status']].copy()
     clin_trial_df.drop_duplicates('clinical_trial_id', inplace=True)
     clin_trial_df.reset_index(inplace=True, drop=True)
-    # Convert recruiting column to boolean (1 if recruiting, 0 otherwise)
-    clin_trial_df.loc[clin_trial_df.query(
-        "recruiting == 'Recruiting'").index, 'recruiting'] = 1
-    clin_trial_df.loc[clin_trial_df.query(
-        "not recruiting == 'Recruiting'").index, 'recruiting'] = 0
-    clin_trial_df['recruiting'] = clin_trial_df['recruiting'].astype('int')
     write_table(dt.Frame(clin_trial_df), 'clinical_trial',
                 output_dir, add_index=False)
 
