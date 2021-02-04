@@ -30,7 +30,8 @@ def build_experiment_df(pset_dict, pset_name, cell_df=None):
     @return: [`pd.DataFrame`] A table containing all experiments in the dataset
     """
     # Build cell_df if not build already
-    if not cell_df:
+    ## FIX: Truth value of a DataFrame is ambiguous (Chris)
+    if cell_df is None:
         cell_df = build_cell_df(pset_dict)
 
     # Extract relelvant experiment columns
@@ -56,8 +57,17 @@ def build_experiment_df(pset_dict, pset_name, cell_df=None):
 
 
 # TODO:: Do Python functions pass my reference or copy by default?
-# If pass by reference may need to make a copy before using inplace=TRUE argument
-# to prevent modifying the original experiments table
+# - Python neither; it is 'pass-by-object-reference'
+# - When you assign a variable in Python, it creates a name in the namespace; that name contains
+#   a reference to the value of that variable (You can use the id() function to see the memory address of an object)
+# - When you pass a variable to a function in Python, it creates a new variable, which is a copy of the
+#   original variable. There are now two DIFFERENT objects, which contain the memory address of the same value
+# - Therefore, if you modify that variable BY REFERENCE within the function, then it will modify the actual value;
+#   the original variable will then also be modified (because it points to the same memory location)
+# - However, if you reassign the variable name within the function scope, it DOES NOT affect the original variable;
+#   instead it modifies the copy of the variable with a reference to a different memory location (the new value)
+# - Outside of the function, the original variable still holds a reference to the old memory location; therefore
+#   the value of that object is not changed
 def build_dose_response_df(pset_dict, pset_name):
     """
     Build a table that, for each experiment in a dataset, lists the drug that was
